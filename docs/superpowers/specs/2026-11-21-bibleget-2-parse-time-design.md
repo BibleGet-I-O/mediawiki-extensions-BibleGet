@@ -68,6 +68,11 @@ parser cache, so readers send no requests and the key never leaves the server.
   with hidden `<input>`s, one of them `bibleVersionsInfo` (JSON). A bad reference or an unknown version is
   an HTTP 200 with rows in the errors table. Real non-200 answers: authentication (401/403) and 429 with
   `Retry-After`. Poetic lines and small caps already come as real HTML (`FormattedText::toHtml`).
+- **At most 30 verses per tag** (author's rule): the number of tags on a wiki is unlimited, but one tag
+  never shows more than 30 verses, whatever the edition. The API enforces 30 only for copyrighted editions:
+  tested 2026-11-22 with the SeminaVerbi key on the dev address, Mt 5 (48 verses) returned 30 verses in
+  NABRE, CEI2008, BLPD and NVBSE, with no error or notice of the cut, and all 48 in DRB and VGCL. So the
+  extension enforces the limit itself.
 - Hebrew psalm numbering for NVBSE and other quirks are the API's concern, not the extension's.
 
 ## Approaches considered
@@ -113,6 +118,13 @@ parser cache, so readers send no requests and the key never leaves the server.
   1.0 `&lt;sm&gt;`… conversions are dropped unless the dev endpoint's real answers still need them (the
   builder checks against captured answers, below).
 - The reference text an editor wrote is always escaped.
+- **Verse limit.** `$wgBibleGetMaxVersesPerQuote` (default 30). When an answer holds more verses than the
+  limit (a public-domain edition), only the first 30 are shown. When a copyrighted edition's answer stops at
+  exactly 30 while the reference asks for more, the API has cut it. In both cases the quote ends with a note
+  in the wiki's language ("only the first 30 verses are shown"), and the page joins the tracking category
+  `bibleget-toolong-category`, so editors split the reference into several tags. The limit counts verses
+  in the answer, not in the reference (the extension does not re-implement the citation grammar). Whether
+  "more was asked" is known from the answer alone is left to the builder.
 - Each quote is cached in the main object cache (WANObjectCache), keyed by API URL + version + reference
   with whitespace removed (the helper's normalisation), so switching from the dev address to production
   does not serve old answers.
@@ -163,6 +175,8 @@ parser cache, so readers send no requests and the key never leaves the server.
 - Fixtures: real answers captured once from the dev endpoint (a good quote, a poetic passage, a bad
   reference, an unknown version), with the info inputs kept, so the sanitiser and failure detection are
   tested against what the API really sends. Capturing them uses the SeminaVerbi key on the server only.
+- The verse limit: a 48-verse public-domain answer shows 30 verses, the note and the category; a 30-verse
+  answer to a 30-verse reference shows no note.
 - The rate limit: an anonymous parse over the limit renders the fallback and makes no request.
 - A check that the key never appears in rendered output or exception messages.
 
