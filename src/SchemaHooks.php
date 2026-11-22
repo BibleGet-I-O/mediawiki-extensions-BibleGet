@@ -13,6 +13,9 @@ class SchemaHooks implements LoadExtensionSchemaUpdatesHook {
 	public function onLoadExtensionSchemaUpdates( $updater ) {
 		$dir = dirname( __DIR__ ) . '/sql';
 		$type = $updater->getDB()->getType();
+		// A new wiki gets both tables from tables-generated.sql; one that has the first already
+		// gets bibleget_notice from its patch.
 		$updater->addExtensionTable( 'bibleget_installation', "$dir/$type/tables-generated.sql" );
+		$updater->addExtensionTable( 'bibleget_notice', "$dir/$type/patch-bibleget_notice.sql" );
 	}
 }

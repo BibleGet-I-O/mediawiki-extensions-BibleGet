@@ -19,5 +19,15 @@
 	"bibleget-error-noref": "Error shown in place of a Bible quote when <code><nowiki><biblequote></nowiki></code> or <code><nowiki>{{#biblequote:}}</nowiki></code> is used without a reference.",
 	"bibleget-error-toomany": "Reason shown in the tooltip of a failed Bible quote: the page already has the maximum number of distinct Bible quotes ($wgBibleGetMaxQuotesPerPage).",
 	"bibleget-note-cut": "Note shown at the end of a Bible quote that was cut to the verse limit.\n\nParameters:\n* $1 - the maximum number of verses shown for one quote",
-	"bibleget-popup-close": "Tooltip and accessible name of the button that closes a Bible quote popup."
+	"bibleget-popup-close": "Tooltip and accessible name of the button that closes a Bible quote popup.",
+	"right-bibleget-manage": "{{doc-right|bibleget-manage}}\nThe right to manage the BibleGet extension; holders also receive the BibleGet service notices.",
+	"action-bibleget-manage": "{{doc-action|bibleget-manage}}",
+	"bibleget-notice-banner-label": "Label at the start of the banner that shows a BibleGet service notice to the wiki's BibleGet managers (when the Echo extension is not installed). Followed by the notice text.",
+	"bibleget-notice-link": "Text of the link to more information about a BibleGet service notice, in the banner and in the Echo notification.",
+	"bibleget-notice-dismiss": "Label of the button that hides a BibleGet service notice banner for good.\n{{Identical|Dismiss}}",
+	"bibleget-notice-deprecation": "Text of a BibleGet service notice that came only from the API's Deprecation HTTP header, without text of its own.\n\nParameters:\n* $1 - the deprecation date, as YYYY-MM-DD",
+	"bibleget-notice-sunset": "Text of a BibleGet service notice that came only from the API's Sunset HTTP header, without text of its own.\n\nParameters:\n* $1 - the sunset date, as YYYY-MM-DD",
+	"notification-header-bibleget-service-notice": "Header of the Echo notification for a BibleGet service notice, sent to the wiki's BibleGet managers.\n\nParameters:\n* $1 - the notice text sent by the BibleGet service (plain text), or {{msg-mw|bibleget-notice-deprecation}} / {{msg-mw|bibleget-notice-sunset}}",
+	"echo-category-title-bibleget": "Name of the Echo notification category for BibleGet service notices, shown in [[Special:Preferences]].",
+	"echo-pref-tooltip-bibleget": "Tooltip of the BibleGet notification category in [[Special:Preferences]]."
 }

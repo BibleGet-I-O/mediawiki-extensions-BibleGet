@@ -44,7 +44,9 @@ class AnswerParser {
 			$out = self::serialise( $results );
 		}
 
-		return new QuoteAnswer( $out, $errors, $verseCount, $cut, $cappedByApi, $notices );
+		return new QuoteAnswer(
+			$out, $errors, $verseCount, $cut, $cappedByApi, $notices, self::parseServiceNotices( $xpath )
+		);
 	}
 
 	private static function load( string $html ): DOMDocument {
@@ -76,6 +78,16 @@ class AnswerParser {
 		}
 		$decoded = json_decode( $input->getAttribute( 'value' ), true );
 		return is_array( $decoded ) ? array_values( $decoded ) : [];
+	}
+
+	/**
+	 * The service notices bundled with the answer (input.BibleGetServiceNotices), checked.
+	 *
+	 * @return array[]
+	 */
+	private static function parseServiceNotices( DOMXPath $xpath ): array {
+		$input = $xpath->query( '//input[@name="service_notices"]' )->item( 0 );
+		return $input instanceof DOMElement ? ServiceNotices::fromJson( $input->getAttribute( 'value' ) ) : [];
 	}
 
 	/**

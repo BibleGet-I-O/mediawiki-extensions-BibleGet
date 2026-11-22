@@ -36,5 +36,37 @@
 		],
 		"indexes": [],
 		"pk": [ "bi_id" ]
+	},
+	{
+		"name": "bibleget_notice",
+		"comment": "BibleGet service notices this wiki has seen, one row per notice id (shown to the managers once)",
+		"columns": [
+			{
+				"name": "bn_id",
+				"comment": "Notice id from the API, or deprecation:<date> / sunset:<date> for a notice from the headers",
+				"type": "string",
+				"options": { "notnull": true, "length": 64 }
+			},
+			{
+				"name": "bn_message",
+				"comment": "Notice text, plain text (empty for a notice from the headers)",
+				"type": "blob",
+				"options": { "notnull": true, "length": 65530 }
+			},
+			{
+				"name": "bn_link",
+				"comment": "https link to more information, if any",
+				"type": "blob",
+				"options": { "notnull": false, "length": 65530 }
+			},
+			{
+				"name": "bn_first_seen",
+				"comment": "When this wiki first received the notice",
+				"type": "mwtimestamp",
+				"options": { "notnull": true }
+			}
+		],
+		"indexes": [],
+		"pk": [ "bn_id" ]
 	}
 ]

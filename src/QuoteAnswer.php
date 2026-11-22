@@ -15,7 +15,7 @@ class QuoteAnswer {
 	 * @param bool $cut Whether we cut the answer to the verse limit
 	 * @param bool $cappedByApi Whether the API itself capped the quote
 	 * @param array[] $notices Per-quote notices (decoded BibleGetNotices)
-	 * @param array[] $serviceNotices Service-level notices
+	 * @param array[] $serviceNotices Service notices bundled with the answer (see ServiceNotices)
 	 */
 	public function __construct(
 		public readonly string $html,

@@ -2,15 +2,25 @@
 
 namespace MediaWiki\Extension\BibleGet;
 
+use MediaWiki\Extension\BibleGet\Notifications\ManagerLocator;
+use MediaWiki\Extension\BibleGet\Notifications\NoticeNotifier;
 use MediaWiki\Hook\ParserFirstCallInitHook;
+use MediaWiki\Html\Html;
 use MediaWiki\MediaWikiServices;
+use MediaWiki\Output\Hook\BeforePageDisplayHook;
+use MediaWiki\Output\OutputPage;
 use MediaWiki\Parser\Parser;
 use MediaWiki\Parser\PPFrame;
+use MediaWiki\Preferences\Hook\GetPreferencesHook;
 
 /**
  * Registers <biblequote> and {{#biblequote:}}; both render through QuoteRenderer.
+ * Without Echo, shows the service notices to the wiki's managers in a banner.
  */
-class Hooks implements ParserFirstCallInitHook {
+class Hooks implements ParserFirstCallInitHook, BeforePageDisplayHook, GetPreferencesHook {
+
+	/** User option: the notice ids the user dismissed, separated by "|". */
+	public const DISMISSED_OPTION = 'bibleget-dismissed';
 
 	/**
 	 * @param Parser $parser
@@ -65,5 +75,67 @@ class Hooks implements ParserFirstCallInitHook {
 	private static function renderer(): QuoteRenderer {
 		// Looked up per call (not injected), so a redefined fetcher is always the one used.
 		return MediaWikiServices::getInstance()->getService( 'BibleGet.QuoteRenderer' );
+	}
+
+	/**
+	 * The service notice banner, for managers when Echo is not installed.
+	 *
+	 * @param OutputPage $out
+	 * @param \Skin $skin
+	 */
+	public function onBeforePageDisplay( $out, $skin ): void {
+		$services = MediaWikiServices::getInstance();
+		/** @var NoticeNotifier $notifier */
+		$notifier = $services->getService( 'BibleGet.NoticeNotifier' );
+		$user = $out->getUser();
+		if ( $notifier->usesEcho() || !$user->isRegistered()
+			|| !$out->getAuthority()->isAllowed( ManagerLocator::RIGHT )
+		) {
+			return;
+		}
+		$dismissed = array_flip( explode( '|',
+			(string)$services->getUserOptionsLookup()->getOption( $user, self::DISMISSED_OPTION, '' )
+		) );
+		$html = '';
+		foreach ( $services->getService( 'BibleGet.NoticeStore' )->current() as $notice ) {
+			if ( !isset( $dismissed[$notice['id']] ) ) {
+				$html .= self::banner( $notice, $out );
+			}
+		}
+		if ( $html !== '' ) {
+			$out->prependHTML( $html );
+			$out->addModules( 'ext.bibleGet.notices' );
+		}
+	}
+
+	/** One notice: text and https link escaped, and a dismiss button. */
+	private static function banner( array $notice, OutputPage $out ): string {
+		$body = Html::element( 'strong', [], $out->msg( 'bibleget-notice-banner-label' )->text() )
+			. ' ' . Html::element( 'span', [ 'class' => 'bibleget-service-notice-text' ],
+				ServiceNotices::text( $notice, $out ) );
+		$link = ServiceNotices::safeLink( $notice['link'] );
+		if ( $link !== null ) {
+			$body .= ' ' . Html::element( 'a', [ 'href' => $link, 'class' => 'external', 'rel' => 'nofollow' ],
+				$out->msg( 'bibleget-notice-link' )->text() );
+		}
+		$body .= ' ' . Html::element( 'button', [
+			'type' => 'button',
+			'class' => 'bibleget-service-notice-dismiss',
+			'data-bibleget-notice' => $notice['id'],
+		], $out->msg( 'bibleget-notice-dismiss' )->text() );
+		return Html::rawElement( 'div', [
+			'class' => 'bibleget-service-notice',
+			'data-bibleget-notice' => $notice['id'],
+		], Html::warningBox( $body ) );
+	}
+
+	/**
+	 * bibleget-dismissed is set through the API (by the banner's dismiss button), not on a form.
+	 *
+	 * @param \MediaWiki\User\User $user
+	 * @param array &$preferences
+	 */
+	public function onGetPreferences( $user, &$preferences ) {
+		$preferences[self::DISMISSED_OPTION] = [ 'type' => 'api' ];
 	}
 }

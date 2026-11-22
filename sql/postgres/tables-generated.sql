@@ -10,3 +10,12 @@ CREATE TABLE bibleget_installation (
   bi_registered_at TIMESTAMPTZ DEFAULT NULL,
   PRIMARY KEY(bi_id)
 );
+
+
+CREATE TABLE bibleget_notice (
+  bn_id VARCHAR(64) NOT NULL,
+  bn_message TEXT NOT NULL,
+  bn_link TEXT DEFAULT NULL,
+  bn_first_seen TIMESTAMPTZ NOT NULL,
+  PRIMARY KEY(bn_id)
+);

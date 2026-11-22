@@ -7,8 +7,11 @@ use MediaWiki\Extension\BibleGet\ApiResult;
 use MediaWiki\Extension\BibleGet\BibleGetClient;
 use MediaWiki\Extension\BibleGet\CredentialProvider;
 use MediaWiki\Extension\BibleGet\InstallationStore;
+use MediaWiki\Extension\BibleGet\NoticeStore;
+use MediaWiki\Extension\BibleGet\Notifications\NoticeNotifier;
 use MediaWiki\Extension\BibleGet\QuoteFetcher;
 use MediaWiki\Extension\BibleGet\QuoteResult;
+use MediaWiki\Extension\BibleGet\Tests\Unit\AnswerParserNoticesTest;
 use MediaWiki\Http\HttpRequestFactory;
 use MediaWiki\User\User;
 use MediaWikiIntegrationTestCase;
@@ -22,6 +25,7 @@ use Wikimedia\Timestamp\ConvertibleTimestamp;
  * @covers \MediaWiki\Extension\BibleGet\QuoteFetcher
  * @covers \MediaWiki\Extension\BibleGet\QuoteResult
  * @covers \MediaWiki\Extension\BibleGet\CredentialProvider
+ * @covers \MediaWiki\Extension\BibleGet\ServiceNotices
  */
 class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 
@@ -37,6 +41,8 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 	public $quoteAnswer;
 	/** @var ApiResult[] Answers to give to register, in order (the last one repeats) */
 	public array $registerAnswers = [];
+	/** @var array[] Notice lists passed to the notifier, one per call */
+	public array $notified = [];
 
 	private WANObjectCache $wan;
 	private BagOStuff $stash;
@@ -49,6 +55,7 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		$this->registers = [];
 		$this->quoteAnswer = static fn () => new ApiResult( 200, self::fixture( 'good-nabre-jn3-16.html' ) );
 		$this->registerAnswers = [];
+		$this->notified = [];
 		ConvertibleTimestamp::setFakeTime( '20261122000000' );
 	}
 
@@ -94,8 +101,28 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 			$this->stash, $services->getGlobalIdGenerator(), new NullLogger()
 		);
 		return new QuoteFetcher(
-			$client, $credentials, $this->wan, $this->stash, $base, self::EXPIRY, 30, new NullLogger()
+			$client, $credentials, $this->wan, $this->stash, $base, self::EXPIRY, 30, new NullLogger(),
+			$this->notifier()
 		);
+	}
+
+	/** A notifier that records what it is given. */
+	private function notifier(): NoticeNotifier {
+		$test = $this;
+		$store = new NoticeStore( $this->getServiceContainer()->getDBLoadBalancer() );
+		return new class( $store, $test ) extends NoticeNotifier {
+			private QuoteFetcherTest $test;
+
+			public function __construct( NoticeStore $store, QuoteFetcherTest $test ) {
+				parent::__construct( $store, false, new NullLogger() );
+				$this->test = $test;
+			}
+
+			public function notify( array $notices ): array {
+				$this->test->notified[] = $notices;
+				return parent::notify( $notices );
+			}
+		};
 	}
 
 	private function user( bool $limited = false ): User {
@@ -345,6 +372,75 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		$this->assertSame( 'bibleget-error-registration', $next->failureKey );
 		$this->assertCount( 2, $this->quotes );
 		$this->assertCount( 2, $this->registers );
+	}
+
+	private const SUNSET_HEADERS = [
+		'sunset' => 'Sat, 01 Jan 2028 00:00:00 GMT',
+		'link' => '<https://www.bibleget.io/sunset>; rel="sunset"; type="text/html"',
+	];
+
+	private static function bundledNotice(): array {
+		return [
+			'id' => 'v3-retirement', 'message' => 'The v3 API retires next year.',
+			'link' => 'https://www.bibleget.io/news/v3', 'published' => '2026-11-01',
+			'deprecation' => '2027-01-01T00:00:00Z', 'sunset' => null,
+		];
+	}
+
+	public function testFreshAnswerFeedsNotices() {
+		$body = AnswerParserNoticesTest::answerWith( json_encode( [ self::bundledNotice() ] ) );
+		$this->quoteAnswer = static fn () => new ApiResult( 200, $body, null, self::SUNSET_HEADERS );
+		$fetcher = $this->fetcher();
+
+		$result = $fetcher->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		$this->assertNull( $result->failureKey );
+		$this->assertCount( 1, $this->notified );
+		$this->assertSame( [ 'v3-retirement', 'sunset:2028-01-01' ], array_column( $this->notified[0], 'id' ) );
+		$this->assertSame( [ self::bundledNotice() ], $result->answer->serviceNotices );
+
+		$cached = $this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		$this->assertTrue( $cached->fromCache );
+		$this->assertSame( [ self::bundledNotice() ], $cached->answer->serviceNotices );
+		$this->assertCount( 1, $this->notified, 'a cached answer does not feed the notices' );
+
+		$this->assertSame(
+			[ 'v3-retirement', 'sunset:2028-01-01' ],
+			array_column( $this->getServiceContainer()->getService( 'BibleGet.NoticeStore' )->current(), 'id' )
+		);
+	}
+
+	public function testFailedAnswerHeadersStillFeedNotices() {
+		$this->quoteAnswer = static fn () => new ApiResult( 429, '{}', 60, self::SUNSET_HEADERS );
+		$result = $this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		$this->assertSame( 'bibleget-error-ratelimit', $result->failureKey );
+		$this->assertSame( [ 'sunset:2028-01-01' ], array_column( $this->notified[0] ?? [], 'id' ) );
+	}
+
+	public function testNoAnswerNoNotices() {
+		$this->quoteAnswer = static fn () => new ApiResult( 0 );
+		$this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		$this->assertSame( [], $this->notified );
+	}
+
+	public function testAnswerWithoutNoticesNotifiesNothing() {
+		$this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		$this->assertSame( [], array_merge( ...$this->notified ) );
+	}
+
+	public function testBadServiceNoticesInCacheIsMiss() {
+		$fetcher = $this->fetcher();
+		$key = $fetcher->makeCacheKey( 'NABRE', 'Jn 3,16' );
+		$fetcher->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		$entry = $this->wan->get( $key );
+		$entry['answer']['serviceNotices'] = 'garbage';
+		$this->wan->set( $key, $entry, 3600 );
+		$this->assertFalse( $this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() )->fromCache );
+
+		unset( $entry['answer']['serviceNotices'] );
+		$this->wan->set( $key, $entry, 3600 );
+		$old = $this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		$this->assertTrue( $old->fromCache, 'an entry from before the key existed still loads' );
+		$this->assertSame( [], $old->answer->serviceNotices );
 	}
 
 	public function testServicesAreWired() {

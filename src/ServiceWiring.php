@@ -5,6 +5,9 @@
 use MediaWiki\Extension\BibleGet\BibleGetClient;
 use MediaWiki\Extension\BibleGet\CredentialProvider;
 use MediaWiki\Extension\BibleGet\InstallationStore;
+use MediaWiki\Extension\BibleGet\NoticeStore;
+use MediaWiki\Extension\BibleGet\Notifications\ManagerLocator;
+use MediaWiki\Extension\BibleGet\Notifications\NoticeNotifier;
 use MediaWiki\Extension\BibleGet\QuoteFetcher;
 use MediaWiki\Extension\BibleGet\QuoteRenderer;
 use MediaWiki\Logger\LoggerFactory;
@@ -38,6 +41,25 @@ return [
 			LoggerFactory::getInstance( 'BibleGet' )
 		);
 	},
+	'BibleGet.NoticeStore' => static function ( MediaWikiServices $services ): NoticeStore {
+		return new NoticeStore( $services->getDBLoadBalancer() );
+	},
+	'BibleGet.NoticeNotifier' => static function ( MediaWikiServices $services ): NoticeNotifier {
+		return new NoticeNotifier(
+			$services->getService( 'BibleGet.NoticeStore' ),
+			ExtensionRegistry::getInstance()->isLoaded( 'Echo' ),
+			LoggerFactory::getInstance( 'BibleGet' )
+		);
+	},
+	'BibleGet.ManagerLocator' => static function ( MediaWikiServices $services ): ManagerLocator {
+		return new ManagerLocator(
+			$services->getGroupPermissionsLookup(),
+			$services->getUserGroupManager(),
+			$services->getConnectionProvider(),
+			$services->getUserIdentityLookup(),
+			$services->getUserFactory()
+		);
+	},
 	'BibleGet.QuoteFetcher' => static function ( MediaWikiServices $services ): QuoteFetcher {
 		$config = $services->getMainConfig();
 		return new QuoteFetcher(
@@ -48,7 +70,8 @@ return [
 			(string)$config->get( 'BibleGetApiBase' ),
 			(int)$config->get( 'BibleGetCacheExpiry' ),
 			(int)$config->get( 'BibleGetMaxVersesPerQuote' ),
-			LoggerFactory::getInstance( 'BibleGet' )
+			LoggerFactory::getInstance( 'BibleGet' ),
+			$services->getService( 'BibleGet.NoticeNotifier' )
 		);
 	},
 	'BibleGet.QuoteRenderer' => static function ( MediaWikiServices $services ): QuoteRenderer {

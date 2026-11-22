@@ -2,6 +2,7 @@
 
 namespace MediaWiki\Extension\BibleGet;
 
+use MediaWiki\Extension\BibleGet\Notifications\NoticeNotifier;
 use MediaWiki\User\User;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -11,7 +12,8 @@ use Wikimedia\Timestamp\ConvertibleTimestamp;
 
 /**
  * Fetches a Bible quote: from the object cache, or (within the user's rate limit) from the
- * BibleGet API with a credential from CredentialProvider.
+ * BibleGet API with a credential from CredentialProvider. The service notices of every
+ * fresh (non-cached) answer go to the NoticeNotifier.
  */
 class QuoteFetcher {
 
@@ -32,7 +34,8 @@ class QuoteFetcher {
 		private readonly string $apiBase,
 		private readonly int $cacheExpiry,
 		private readonly int $maxVerses,
-		private readonly LoggerInterface $logger
+		private readonly LoggerInterface $logger,
+		private readonly ?NoticeNotifier $notifier = null
 	) {
 	}
 
@@ -108,21 +111,37 @@ class QuoteFetcher {
 		if ( $result->status === 0 ) {
 			return $this->fresh( 'bibleget-error-network' );
 		}
+		$ok = $result->status >= 200 && $result->status < 300;
+		$answer = $ok ? AnswerParser::parse( $result->body, $this->maxVerses ) : null;
+		$this->notifyNotices( $answer?->serviceNotices ?? [], $result->headers );
+
 		if ( $result->status === 422 ) {
 			return $this->fresh( 'bibleget-error-version' );
 		}
 		if ( $result->status === 429 ) {
 			return $this->fresh( 'bibleget-error-ratelimit', $result->retryAfter );
 		}
-		if ( $result->status < 200 || $result->status >= 300 ) {
+		if ( !$answer ) {
 			$this->logger->warning( 'BibleGet quote answered HTTP {status}', [ 'status' => $result->status ] );
 			return $this->fresh( 'bibleget-error-status' );
 		}
-		$answer = AnswerParser::parse( $result->body, $this->maxVerses );
 		if ( $answer->isFailure() ) {
 			return $this->fresh( 'bibleget-error-reference' );
 		}
 		return [ new QuoteResult( $answer, null, false ), $this->cacheExpiry ];
+	}
+
+	/**
+	 * Hand the notices of a fresh answer (bundled, then from the headers) to the notifier.
+	 *
+	 * @param array[] $bundled
+	 * @param string[] $headers
+	 */
+	private function notifyNotices( array $bundled, array $headers ): void {
+		$notices = ServiceNotices::merge( $bundled, ServiceNotices::fromHeaders( $headers ) );
+		if ( $notices !== [] && $this->notifier ) {
+			$this->notifier->notify( $notices );
+		}
 	}
 
 	/**

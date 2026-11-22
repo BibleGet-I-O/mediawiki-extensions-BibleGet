@@ -51,4 +51,17 @@ class ExtensionJsonTest extends MediaWikiUnitTestCase {
 		);
 		$this->assertSame( [ 'src/ServiceWiring.php' ], $ext['ServiceWiringFiles'] );
 	}
+
+	public function testNoticeRegistration() {
+		$ext = $this->load();
+		$this->assertSame( '', $ext['DefaultUserOptions']['bibleget-dismissed'] );
+		$this->assertSame( 'echo', $ext['Hooks']['BeforeCreateEchoEvent']['handler'] );
+		$this->assertSame(
+			'MediaWiki\\Extension\\BibleGet\\Notifications\\EchoHooks',
+			$ext['HookHandlers']['echo']['class']
+		);
+		$this->assertSame( 'main', $ext['Hooks']['BeforePageDisplay']['handler'] );
+		$this->assertSame( 'main', $ext['Hooks']['GetPreferences']['handler'] );
+		$this->assertArrayHasKey( 'ext.bibleGet.notices', $ext['ResourceModules'] );
+	}
 }

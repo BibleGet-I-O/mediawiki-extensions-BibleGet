@@ -10,3 +10,12 @@ CREATE TABLE /*_*/bibleget_installation (
   bi_registered_at BLOB DEFAULT NULL,
   PRIMARY KEY(bi_id)
 );
+
+
+CREATE TABLE /*_*/bibleget_notice (
+  bn_id VARCHAR(64) NOT NULL,
+  bn_message BLOB NOT NULL,
+  bn_link BLOB DEFAULT NULL,
+  bn_first_seen BLOB NOT NULL,
+  PRIMARY KEY(bn_id)
+);

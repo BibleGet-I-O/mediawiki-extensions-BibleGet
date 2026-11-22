@@ -10,3 +10,12 @@ CREATE TABLE /*_*/bibleget_installation (
   bi_registered_at BINARY(14) DEFAULT NULL,
   PRIMARY KEY(bi_id)
 ) /*$wgDBTableOptions*/;
+
+
+CREATE TABLE /*_*/bibleget_notice (
+  bn_id VARCHAR(64) NOT NULL,
+  bn_message BLOB NOT NULL,
+  bn_link BLOB DEFAULT NULL,
+  bn_first_seen BINARY(14) NOT NULL,
+  PRIMARY KEY(bn_id)
+) /*$wgDBTableOptions*/;

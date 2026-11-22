@@ -19,5 +19,15 @@
 	"bibleget-error-noref": "No Bible reference was given.",
 	"bibleget-error-toomany": "This page has more Bible quotes than this wiki allows on one page.",
 	"bibleget-note-cut": "Only the first $1 {{PLURAL:$1|verse is|verses are}} shown.",
-	"bibleget-popup-close": "Close"
+	"bibleget-popup-close": "Close",
+	"right-bibleget-manage": "Manage the BibleGet extension and receive its service notices",
+	"action-bibleget-manage": "manage the BibleGet extension",
+	"bibleget-notice-banner-label": "BibleGet service notice:",
+	"bibleget-notice-link": "More information",
+	"bibleget-notice-dismiss": "Dismiss",
+	"bibleget-notice-deprecation": "The BibleGet service has announced that features this wiki uses are deprecated as of $1.",
+	"bibleget-notice-sunset": "The BibleGet service has announced that features this wiki uses will stop working on $1.",
+	"notification-header-bibleget-service-notice": "BibleGet service notice: $1",
+	"echo-category-title-bibleget": "BibleGet service notices",
+	"echo-pref-tooltip-bibleget": "Notify me when the BibleGet service sends a notice to this wiki's BibleGet managers."
 }
