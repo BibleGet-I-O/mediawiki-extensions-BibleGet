@@ -18,6 +18,11 @@ class QuoteFetcher {
 	/** Longest time a failure is cached, so the page retries soon. */
 	public const FAILURE_TTL = 300;
 	private const LAST_FAILURE_TTL = 30 * 86400;
+	/** Seconds other requests skip the API after it gave no answer. */
+	public const UNREACHABLE_TTL = 60;
+
+	/** The API gave no answer in this request: later uncached fetches fail at once. */
+	private bool $unreachable = false;
 
 	public function __construct(
 		private readonly BibleGetClient $client,
@@ -50,12 +55,20 @@ class QuoteFetcher {
 			return $cached;
 		}
 
+		if ( $this->isUnreachable() ) {
+			// No call: one timeout per request (and per minute) is enough.
+			return $this->failure( 'bibleget-error-network' );
+		}
+
 		if ( $user->pingLimiter( 'bibleget-fetch' ) ) {
 			// The user's limit, not the quote's: not cached.
 			return $this->failure( 'bibleget-error-ratelimit' );
 		}
 
 		[ $result, $ttl ] = $this->fetchFresh( $version, $reference );
+		if ( $result->failureKey === 'bibleget-error-network' ) {
+			$this->markUnreachable();
+		}
 		$this->cache->set( $key, $result->answer
 			? [ 'answer' => $result->answer->toArray() ]
 			: [ 'failure' => $result->failureKey ], $ttl );
@@ -156,6 +169,27 @@ class QuoteFetcher {
 			&& is_bool( $data['cappedByApi'] ?? null )
 			&& is_array( $data['notices'] ?? [] )
 			&& is_array( $data['serviceNotices'] ?? [] );
+	}
+
+	private function isUnreachable(): bool {
+		if ( $this->unreachable ) {
+			return true;
+		}
+		$flag = $this->stash->get( $this->unreachableKey() );
+		return is_int( $flag ) && $flag > ConvertibleTimestamp::time();
+	}
+
+	private function markUnreachable(): void {
+		$this->unreachable = true;
+		$this->stash->set(
+			$this->unreachableKey(),
+			(int)ConvertibleTimestamp::time() + self::UNREACHABLE_TTL,
+			self::UNREACHABLE_TTL
+		);
+	}
+
+	private function unreachableKey(): string {
+		return $this->stash->makeKey( 'bibleget', 'unreachable' );
 	}
 
 	private function recordFailure( string $failureKey ): void {

@@ -183,6 +183,47 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		);
 	}
 
+	public function testUnreachableFailsFast() {
+		$fetcher = $this->fetcher();
+		$cached = $fetcher->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		$this->assertNull( $cached->failureKey );
+
+		$this->quoteAnswer = static fn () => new ApiResult( 0 );
+		$this->assertSame( 'bibleget-error-network', $fetcher->fetch( 'NABRE', 'Mt 5,3', $this->user() )->failureKey );
+		$second = $fetcher->fetch( 'NABRE', 'Ps 23', $this->user() );
+		$this->assertSame( 'bibleget-error-network', $second->failureKey );
+		$this->assertFalse( $second->fromCache );
+		$this->assertCount( 2, $this->quotes, 'one call for the good quote, one for the timeout' );
+
+		// Cached quotes still render while the API is unreachable.
+		$hit = $fetcher->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		$this->assertTrue( $hit->fromCache );
+		$this->assertNull( $hit->failureKey );
+
+		// Another request within the minute skips the API too; after it, it tries again.
+		ConvertibleTimestamp::setFakeTime( '20261122000059' );
+		$this->assertSame(
+			'bibleget-error-network',
+			$this->fetcher()->fetch( 'NABRE', 'Ex 20', $this->user() )->failureKey
+		);
+		$this->assertCount( 2, $this->quotes );
+		ConvertibleTimestamp::setFakeTime( '20261122000101' );
+		$this->fetcher()->fetch( 'NABRE', 'Ex 20', $this->user() );
+		$this->assertCount( 3, $this->quotes );
+	}
+
+	public function testRegistrationTimeoutFailsFast() {
+		$this->registerAnswers = [ new ApiResult( 0 ) ];
+		$fetcher = $this->fetcher( null );
+		$this->assertSame( 'bibleget-error-network', $fetcher->fetch( 'NABRE', 'Jn 3,16', $this->user() )->failureKey );
+		$this->assertSame(
+			'bibleget-error-network',
+			$this->fetcher( null )->fetch( 'NABRE', 'Mt 5,3', $this->user() )->failureKey
+		);
+		$this->assertCount( 1, $this->registers );
+		$this->assertSame( [], $this->quotes );
+	}
+
 	public function testFailureNegativeCacheShort() {
 		$this->quoteAnswer = static fn () => new ApiResult( 0 );
 		$fetcher = $this->fetcher();
@@ -193,6 +234,9 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		$this->assertSame( 'bibleget-error-network', $again->failureKey );
 		$this->assertCount( 1, $this->quotes );
 
+		// Past the unreachable window (and in a new request), the API is tried again.
+		ConvertibleTimestamp::setFakeTime( '20261122000101' );
+		$fetcher = $this->fetcher();
 		$this->quoteAnswer = static fn () => new ApiResult( 200, self::fixture( 'bad-reference.html' ) );
 		$bad = $fetcher->fetch( 'NABRE', 'Xyz99,1', $this->user() );
 		$this->assertNull( $bad->answer );
