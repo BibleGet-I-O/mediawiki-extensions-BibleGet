@@ -15,5 +15,8 @@
 	"bibleget-error-version": "Reason shown in the tooltip of a failed Bible quote: the BibleGet API does not know the requested Bible version.",
 	"bibleget-error-ratelimit": "Reason shown in the tooltip of a failed Bible quote: the user's rate limit or the BibleGet API's rate limit was reached.",
 	"bibleget-error-registration": "Reason shown in the tooltip of a failed Bible quote: the wiki could not register with, or obtain a working credential from, the BibleGet API.",
-	"bibleget-error-clientkey-revoked": "Reason shown in the tooltip of a failed Bible quote: the BibleGet API revoked the client key bundled with this release of the extension. A \"project key\" is an API key obtained from the BibleGet developer pages."
+	"bibleget-error-clientkey-revoked": "Reason shown in the tooltip of a failed Bible quote: the BibleGet API revoked the client key bundled with this release of the extension. A \"project key\" is an API key obtained from the BibleGet developer pages.",
+	"bibleget-error-noref": "Error shown in place of a Bible quote when <code><nowiki><biblequote></nowiki></code> or <code><nowiki>{{#biblequote:}}</nowiki></code> is used without a reference.",
+	"bibleget-error-toomany": "Reason shown in the tooltip of a failed Bible quote: the page already has the maximum number of distinct Bible quotes ($wgBibleGetMaxQuotesPerPage).",
+	"bibleget-note-cut": "Note shown at the end of a Bible quote that was cut to the verse limit.\n\nParameters:\n* $1 - the maximum number of verses shown for one quote"
 }

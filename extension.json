@@ -20,6 +20,9 @@
 	"AutoloadNamespaces": {
 		"MediaWiki\\Extension\\BibleGet\\": "src/"
 	},
+	"TestAutoloadNamespaces": {
+		"MediaWiki\\Extension\\BibleGet\\Tests\\": "tests/phpunit/"
+	},
 	"ServiceWiringFiles": [
 		"src/ServiceWiring.php"
 	],
@@ -27,6 +30,22 @@
 		"BibleGet": [
 			"i18n"
 		]
+	},
+	"ResourceFileModulePaths": {
+		"localBasePath": "modules",
+		"remoteExtPath": "BibleGet/modules"
+	},
+	"ResourceModules": {
+		"ext.bibleGet": {
+			"packageFiles": [
+				"ext.bibleGet.js"
+			]
+		},
+		"ext.bibleGet.styles": {
+			"styles": [
+				"ext.bibleGet.styles.css"
+			]
+		}
 	},
 	"AvailableRights": [
 		"bibleget-manage"
@@ -54,6 +73,9 @@
 		},
 		"schema": {
 			"class": "MediaWiki\\Extension\\BibleGet\\SchemaHooks"
+		},
+		"parsertest": {
+			"class": "MediaWiki\\Extension\\BibleGet\\Tests\\ParserTestHooks"
 		}
 	},
 	"Hooks": {
@@ -62,6 +84,9 @@
 		},
 		"LoadExtensionSchemaUpdates": {
 			"handler": "schema"
+		},
+		"ParserTestGlobals": {
+			"handler": "parsertest"
 		}
 	},
 	"config": {

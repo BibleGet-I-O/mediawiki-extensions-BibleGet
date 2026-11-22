@@ -3,158 +3,67 @@
 namespace MediaWiki\Extension\BibleGet;
 
 use MediaWiki\Hook\ParserFirstCallInitHook;
+use MediaWiki\MediaWikiServices;
 use MediaWiki\Parser\Parser;
+use MediaWiki\Parser\PPFrame;
 
+/**
+ * Registers <biblequote> and {{#biblequote:}}; both render through QuoteRenderer.
+ */
 class Hooks implements ParserFirstCallInitHook {
-
-	private const VERSIONS_AVAILABLE = [
-		"NABRE",
-		"NVBSE",
-		"LUZZI",
-		"CEI2008",
-		"DRB",
-		"VGCL"
-	];
-
-	private static function isValidVersion( string $version ): bool {
-		return in_array( $version, self::VERSIONS_AVAILABLE );
-	}
 
 	/**
 	 * @param Parser $parser
 	 */
 	public function onParserFirstCallInit( $parser ): void {
-		$parser->setHook( 'biblequote', [ self::class, 'renderBibleQuoteTag' ] );
-		$parser->setFunctionHook( 'biblequote', [ self::class, 'renderBibleQuote' ] );
+		$parser->setHook( 'biblequote', [ self::class, 'renderTag' ] );
+		$parser->setFunctionHook( 'biblequote', [ self::class, 'renderFunction' ] );
 	}
 
 	/**
-	 * @param string $bibleVersion
-	 * @param string $bibleRef
-	 * @param string $hash
-	 * @return string
-	 */
-	// phpcs:ignore Generic.Files.LineLength.TooLong
-	private static function retrieveBibleQuoteFromApi( string $bibleVersion, string $bibleRef, string $hash ): string {
-		$ch = curl_init();
-		curl_setopt( $ch, CURLOPT_URL, "https://query.bibleget.io" );
-		curl_setopt( $ch, CURLOPT_POST, true );
-		// phpcs:ignore Generic.Files.LineLength.TooLong
-		curl_setopt( $ch, CURLOPT_POSTFIELDS, "query={$bibleRef}&version={$bibleVersion}&appid=SeminaVerbi&return=html" );
-		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
-		$output = curl_exec( $ch );
-		curl_close( $ch );
-
-		$output = str_replace(
-			[ "\n", "\r" ],
-			'',
-			$output );
-		$output = preg_replace(
-			'/&lt;br( ){0,1}(\/){0,1}&gt;/',
-			'',
-			$output
-		);
-		$output = preg_replace(
-			'/&lt;(sm|pof|po|pol|pos|poif|poi|poil|po3|po3l|speaker|pr)&gt;/',
-			'<span class="$1">',
-			$output
-		);
-		$output = preg_replace(
-			'/&lt;\/(sm|pof|po|pol|pos|poif|poi|poil|po3|po3l|speaker|pr)&gt;/',
-			'</span>',
-			$output
-		);
-		$output = preg_replace(
-			'/&lt;(\/){0,1}i&gt;/',
-			'<$1i>',
-			$output
-		);
-		$output = preg_replace(
-			'/(bookChapter">[1-4])(\p{L})/',
-			'$1&nbsp;$2',
-			$output
-		);
-
-		file_put_contents( "bibleQuotes/{$hash}.html", $output );
-		return $output;
-	}
-
-	/**
-	 * @param string $input
+	 * <biblequote ref="…" version="…" inline="…">reference</biblequote>
+	 *
+	 * @param string|null $input The body: the reference when there is no ref attribute
 	 * @param array $args
-	 * @return array
+	 * @param Parser $parser
+	 * @param PPFrame $frame
+	 * @return string HTML
 	 */
-	// phpcs:ignore Generic.Files.LineLength.TooLong
-	public static function renderBibleQuoteTag( ?string $input, array $args ): array {
-		global $wgBibleGetDefaultBibleVersion;
-		$bibleRef 	  = isset( $args['ref'] )
-						? $args['ref']
-						: ( $input ?? 'John3:16' );
-		$inline = isset( $args['inline'] )
-						? filter_var( $args['inline'], FILTER_VALIDATE_BOOLEAN )
-						: false;
-		$bibleVersion = $wgBibleGetDefaultBibleVersion;
-		if ( isset( $args['version'] ) ) {
-			if ( self::isValidVersion( $args['version'] ) ) {
-				$bibleVersion = $args['version'];
-			} else {
-				$inlineStr = $inline ? 'true' : 'false';
-				$html = "<span class=\"bibleQuoteRefBroken\""
-					. " data-ref=\"{$bibleRef}\" data-version=\"{$args['version']}\" data-inline=\"{$inlineStr}\""
-					. " title=\"The Bible version '{$args['version']}' is not supported by the BibleGet endpoint.\">"
-					. $bibleRef
-					. "</span>"
-					. "<sup class=\"bibleQuoteRefBrokenReason\""
-					. " title=\"The Bible version '{$args['version']}' is not supported by the BibleGet endpoint.\""
-					. ">[!]</sup>";
-				return [ $html, 'noparse' => true, 'isHTML' => true ];
-			}
-		}
-		$str = $bibleVersion . "/" . $bibleRef;
-		$tmp = preg_replace( "/\s+/", "", $str );
-		$hash = md5( $tmp );
-		if ( file_exists( "bibleQuotes/{$hash}.html" ) ) {
-			$html = file_get_contents( "bibleQuotes/{$hash}.html" );
-		} else {
-			$html = self::retrieveBibleQuoteFromApi( $bibleVersion, $bibleRef, $hash );
-		}
-		return [ $html, 'noparse' => true, 'isHTML' => true ];
+	public static function renderTag( ?string $input, array $args, Parser $parser, PPFrame $frame ): string {
+		return self::renderer()->render(
+			$parser,
+			(string)( $args['ref'] ?? $input ?? '' ),
+			$args['version'] ?? null,
+			self::isInline( $args['inline'] ?? '' )
+		);
 	}
 
 	/**
+	 * {{#biblequote:reference|display|version}}
+	 *
 	 * @param Parser $parser
-	 * @param string $bibleVersion
-	 * @param string $bibleRef
+	 * @param string $reference
+	 * @param string $display inline/true or block/false
+	 * @param string $version
 	 * @return array
 	 */
-	// phpcs:ignore Generic.Files.LineLength.TooLong
-	public static function renderBibleQuote( Parser $parser, string $bibleRef = 'John3:16', bool $inline = false, ?string $bibleVersion = null ): array {
-		global $wgBibleGetDefaultBibleVersion;
-		$bibleEdition = $wgBibleGetDefaultBibleVersion;
-		if ( $bibleVersion !== null ) {
-			if ( self::isValidVersion( $bibleVersion ) ) {
-				$bibleEdition = $bibleVersion;
-			} else {
-				$inlineStr = $inline ? 'true' : 'false';
-				$html = "<span class=\"bibleQuoteRefBroken\""
-					. " data-ref=\"{$bibleRef}\" data-version=\"{$bibleVersion}\" data-inline=\"{$inlineStr}\""
-					. " title=\"The Bible version '{$bibleVersion}' is not supported by the BibleGet endpoint.\">"
-					. $bibleRef
-					. "</span>"
-					. "<sup class=\"bibleQuoteRefBrokenReason\""
-					. " title=\"The Bible version '{$bibleVersion}' is not supported by the BibleGet endpoint.\""
-					. ">[!]</sup>";
-				return [ $html, 'noparse' => true, 'isHTML' => true ];
-			}
-		}
-		$str = $bibleEdition . "/" . $bibleRef;
-		$tmp = preg_replace( "/\s+/", "", $str );
-		$hash = md5( $tmp );
-		if ( file_exists( "bibleQuotes/{$hash}.html" ) ) {
-			$html = file_get_contents( "bibleQuotes/{$hash}.html" );
-		} else {
-			$html = self::retrieveBibleQuoteFromApi( $bibleEdition, $bibleRef, $hash );
-		}
-		return [ $html, 'noparse' => true, 'isHTML' => true ];
+	public static function renderFunction(
+		Parser $parser, string $reference = '', string $display = '', string $version = ''
+	): array {
+		$html = self::renderer()->render( $parser, $reference, $version, self::isInline( $display ) );
+		return [ $html, 'isHTML' => true ];
+	}
+
+	/**
+	 * The display argument: what 1.0 accepted for inline (a boolean), or inline/block.
+	 */
+	private static function isInline( string $display ): bool {
+		$display = strtolower( trim( $display ) );
+		return $display === 'inline' || filter_var( $display, FILTER_VALIDATE_BOOLEAN );
+	}
+
+	private static function renderer(): QuoteRenderer {
+		// Looked up per call (not injected), so a redefined fetcher is always the one used.
+		return MediaWikiServices::getInstance()->getService( 'BibleGet.QuoteRenderer' );
 	}
 }

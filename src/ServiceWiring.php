@@ -6,6 +6,7 @@ use MediaWiki\Extension\BibleGet\BibleGetClient;
 use MediaWiki\Extension\BibleGet\CredentialProvider;
 use MediaWiki\Extension\BibleGet\InstallationStore;
 use MediaWiki\Extension\BibleGet\QuoteFetcher;
+use MediaWiki\Extension\BibleGet\QuoteRenderer;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Registration\ExtensionRegistry;
@@ -48,6 +49,16 @@ return [
 			(int)$config->get( 'BibleGetCacheExpiry' ),
 			(int)$config->get( 'BibleGetMaxVersesPerQuote' ),
 			LoggerFactory::getInstance( 'BibleGet' )
+		);
+	},
+	'BibleGet.QuoteRenderer' => static function ( MediaWikiServices $services ): QuoteRenderer {
+		$config = $services->getMainConfig();
+		return new QuoteRenderer(
+			$services->getService( 'BibleGet.QuoteFetcher' ),
+			$services->getUserFactory(),
+			(string)$config->get( 'BibleGetDefaultBibleVersion' ),
+			(int)$config->get( 'BibleGetMaxQuotesPerPage' ),
+			(int)$config->get( 'BibleGetMaxVersesPerQuote' )
 		);
 	},
 ];

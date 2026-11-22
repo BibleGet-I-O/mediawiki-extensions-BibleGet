@@ -1,0 +1,122 @@
+!! Version 2
+# BibleGet parser tests. Quotes come from FakeQuoteFetcher (tests/phpunit), never from the API.
+
+!! hooks
+biblequote
+!! endhooks
+
+!! functionhooks
+biblequote
+!! endfunctionhooks
+
+!! test
+biblequote tag: reference in the ref attribute, block
+!! wikitext
+<biblequote ref="Jn 3,16" version="NABRE" />
+!! html/php
+<div class="bibleget-quote"><div class="results bibleQuote"><p class="version bibleVersion">NABRE</p><p class="book bookChapter">John&#160;3</p><p class="verses versesParagraph"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></p></div></div>
+!! end
+
+!! test
+biblequote tag: reference in the body, default version
+!! wikitext
+<biblequote>Jn 3,16</biblequote>
+!! html/php
+<div class="bibleget-quote"><div class="results bibleQuote"><p class="version bibleVersion">NABRE</p><p class="book bookChapter">John&#160;3</p><p class="verses versesParagraph"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></p></div></div>
+!! end
+
+!! test
+biblequote tag: inline="true"
+!! wikitext
+See <biblequote ref="Jn 3,16" inline="true" /> here.
+!! html/php
+<p>See <span class="bibleget-inline"><span class="bibleget-ref" tabindex="0">Jn 3,16</span><span class="bibleget-popup"><span class="results bibleQuote bibleget-block"><span class="version bibleVersion bibleget-block">NABRE</span><span class="book bookChapter bibleget-block">John&#160;3</span><span class="verses versesParagraph bibleget-block"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></span></span></span></span> here.
+</p>
+!! end
+
+!! test
+#biblequote: inline
+!! wikitext
+See {{#biblequote:Jn 3,16|inline|NABRE}} here.
+!! html/php
+<p>See <span class="bibleget-inline"><span class="bibleget-ref" tabindex="0">Jn 3,16</span><span class="bibleget-popup"><span class="results bibleQuote bibleget-block"><span class="version bibleVersion bibleget-block">NABRE</span><span class="book bookChapter bibleget-block">John&#160;3</span><span class="verses versesParagraph bibleget-block"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></span></span></span></span> here.
+</p>
+!! end
+
+!! test
+#biblequote: true (1.0 syntax)
+!! wikitext
+See {{#biblequote:Jn 3,16|true|NABRE}} here.
+!! html/php
+<p>See <span class="bibleget-inline"><span class="bibleget-ref" tabindex="0">Jn 3,16</span><span class="bibleget-popup"><span class="results bibleQuote bibleget-block"><span class="version bibleVersion bibleget-block">NABRE</span><span class="book bookChapter bibleget-block">John&#160;3</span><span class="verses versesParagraph bibleget-block"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></span></span></span></span> here.
+</p>
+!! end
+
+!! test
+#biblequote: block
+!! wikitext
+{{#biblequote:Jn 3,16|block|NABRE}}
+!! html/php
+<div class="bibleget-quote"><div class="results bibleQuote"><p class="version bibleVersion">NABRE</p><p class="book bookChapter">John&#160;3</p><p class="verses versesParagraph"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></p></div></div>
+!! end
+
+!! test
+#biblequote: false (1.0 syntax), default version
+!! wikitext
+{{#biblequote:Jn 3,16|false}}
+!! html/php
+<div class="bibleget-quote"><div class="results bibleQuote"><p class="version bibleVersion">NABRE</p><p class="book bookChapter">John&#160;3</p><p class="verses versesParagraph"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></p></div></div>
+!! end
+
+!! test
+#biblequote: reference only
+!! wikitext
+{{#biblequote:Jn 3,16}}
+!! html/php
+<div class="bibleget-quote"><div class="results bibleQuote"><p class="version bibleVersion">NABRE</p><p class="book bookChapter">John&#160;3</p><p class="verses versesParagraph"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></p></div></div>
+!! end
+
+!! test
+biblequote tag: no reference
+!! wikitext
+<biblequote />
+!! html/php
+<p><strong class="error">No Bible reference was given.</strong>
+</p>
+!! end
+
+!! test
+#biblequote: no reference
+!! wikitext
+{{#biblequote:}}
+!! html/php
+<p><strong class="error">No Bible reference was given.</strong>
+</p>
+!! end
+
+!! test
+biblequote tag: unknown version renders the fallback
+!! wikitext
+<biblequote version="ZZZZ">Jn 3,16</biblequote>
+!! html/php
+<p><span class="bibleget-failed">Jn 3,16</span><sup class="bibleget-failed-marker" title="BibleGet does not know this Bible version.">[!]</sup>
+</p>
+!! end
+
+!! test
+#biblequote: unknown version renders the fallback
+!! wikitext
+{{#biblequote:Jn 3,16|block|ZZZZ}}
+!! html/php
+<p><span class="bibleget-failed">Jn 3,16</span><sup class="bibleget-failed-marker" title="BibleGet does not know this Bible version.">[!]</sup>
+</p>
+!! end
+
+!! test
+biblequote tag: the reference is literal text
+!! wikitext
+<biblequote>Mt 5,3 <b>"x"</b> {{tl}} [[A]]</biblequote>
+!! html/php
+<p><span class="bibleget-failed">Mt 5,3 &lt;b&gt;"x"&lt;/b&gt; {{tl}} [[A]]</span><sup class="bibleget-failed-marker" title="The BibleGet service could not be reached.">[!]</sup>
+</p>
+!! end
