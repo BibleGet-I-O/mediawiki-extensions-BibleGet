@@ -22,10 +22,14 @@ class SiteAddress {
 		'224.0.0.0/4',
 	];
 
-	/** Documentation prefixes inside global unicast (RFC 3849, RFC 9637) */
+	/**
+	 * Prefixes inside global unicast that are not a site's own address: documentation (RFC 3849,
+	 * RFC 9637) and 6to4 (RFC 3056), refused whatever IPv4 address it carries
+	 */
 	private const INTERNAL_IPV6_RANGES = [
 		'2001:db8::/32',
 		'3fff::/20',
+		'2002::/16',
 	];
 
 	public static function isPublicHttps( string $url ): bool {

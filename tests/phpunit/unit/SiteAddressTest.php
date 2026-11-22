@@ -77,6 +77,8 @@ class SiteAddressTest extends MediaWikiUnitTestCase {
 			'IPv6 documentation' => [ 'https://[2001:db8::1]' ],
 			'IPv6 documentation (RFC 9637)' => [ 'https://[3fff::1]' ],
 			'IPv4 multicast' => [ 'https://224.0.0.1' ],
+			'6to4 private' => [ 'https://[2002:c0a8:101::1]' ],
+			'6to4 public' => [ 'https://[2002:808:808::1]' ],
 			'home.arpa itself' => [ 'https://home.arpa' ],
 		];
 	}
