@@ -18,5 +18,6 @@
 	"bibleget-error-clientkey-revoked": "Reason shown in the tooltip of a failed Bible quote: the BibleGet API revoked the client key bundled with this release of the extension. A \"project key\" is an API key obtained from the BibleGet developer pages.",
 	"bibleget-error-noref": "Error shown in place of a Bible quote when <code><nowiki><biblequote></nowiki></code> or <code><nowiki>{{#biblequote:}}</nowiki></code> is used without a reference.",
 	"bibleget-error-toomany": "Reason shown in the tooltip of a failed Bible quote: the page already has the maximum number of distinct Bible quotes ($wgBibleGetMaxQuotesPerPage).",
-	"bibleget-note-cut": "Note shown at the end of a Bible quote that was cut to the verse limit.\n\nParameters:\n* $1 - the maximum number of verses shown for one quote"
+	"bibleget-note-cut": "Note shown at the end of a Bible quote that was cut to the verse limit.\n\nParameters:\n* $1 - the maximum number of verses shown for one quote",
+	"bibleget-popup-close": "Tooltip and accessible name of the button that closes a Bible quote popup."
 }

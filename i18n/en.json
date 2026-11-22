@@ -18,5 +18,6 @@
 	"bibleget-error-clientkey-revoked": "The BibleGet service no longer accepts this version of the extension; update it or set a BibleGet project key.",
 	"bibleget-error-noref": "No Bible reference was given.",
 	"bibleget-error-toomany": "This page has more Bible quotes than this wiki allows on one page.",
-	"bibleget-note-cut": "Only the first $1 {{PLURAL:$1|verse is|verses are}} shown."
+	"bibleget-note-cut": "Only the first $1 {{PLURAL:$1|verse is|verses are}} shown.",
+	"bibleget-popup-close": "Close"
 }

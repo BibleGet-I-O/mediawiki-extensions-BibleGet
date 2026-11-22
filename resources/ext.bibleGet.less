@@ -1,0 +1,52 @@
+/* stylelint-disable selector-class-pattern -- class names are fixed by QuoteRenderer and the BibleGet API */
+// Popup states set by ext.bibleGet.js. Placement is in viewport coordinates, so the script
+// recomputes it on scroll and resize.
+@popup-margin: 8px;
+
+.bibleget-inline {
+	&.bibleget-open .bibleget-popup {
+		display: block;
+	}
+
+	// Closed by a tap outside, Escape or the close button, until the reference is entered again.
+	&.bibleget-dismissed .bibleget-popup {
+		display: none;
+	}
+
+	.bibleget-popup.bibleget-placed {
+		position: fixed;
+		margin: 0;
+	}
+
+	&.bibleget-sticky .bibleget-popup {
+		overflow-y: auto;
+		max-height: ~'calc( 100vh - 2 * @{popup-margin} )';
+		padding-top: 2.4em;
+	}
+
+	.bibleget-close {
+		display: none;
+	}
+
+	&.bibleget-sticky .bibleget-close {
+		display: block;
+		position: absolute;
+		top: 4px;
+		right: 6px;
+		width: 2em;
+		height: 2em;
+		padding: 0;
+		border: 1px solid #a2a9b1;
+		background-color: #eaecf0;
+		color: #b32424;
+		font-weight: bold;
+		line-height: 1;
+		cursor: pointer;
+
+		&:hover,
+		&:focus {
+			background-color: #dfe2e7;
+			color: #d33;
+		}
+	}
+}

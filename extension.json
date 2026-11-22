@@ -32,18 +32,24 @@
 		]
 	},
 	"ResourceFileModulePaths": {
-		"localBasePath": "modules",
-		"remoteExtPath": "BibleGet/modules"
+		"localBasePath": "resources",
+		"remoteExtPath": "BibleGet/resources"
 	},
 	"ResourceModules": {
 		"ext.bibleGet": {
 			"packageFiles": [
 				"ext.bibleGet.js"
+			],
+			"styles": [
+				"ext.bibleGet.less"
+			],
+			"messages": [
+				"bibleget-popup-close"
 			]
 		},
 		"ext.bibleGet.styles": {
 			"styles": [
-				"ext.bibleGet.styles.css"
+				"ext.bibleGet.styles.less"
 			]
 		}
 	},
