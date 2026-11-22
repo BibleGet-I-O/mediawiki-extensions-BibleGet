@@ -109,6 +109,8 @@ parser cache, so readers send no requests and the key never leaves the server.
 - `$wgBibleGetClientKey`: the client key (`bgclient_…`) used only to register. Its default is the key
   bundled in that release's `extension.json`; an operator overrides it only to test against a
   development endpoint with a `_test_` client key.
+- `$wgBibleGetContactEmail`: optional, default empty. When set, it is sent to BibleGet so the operator can
+  be told about breaking changes (below). Never filled from `$wgEmergencyContact` or any other setting.
 - `$wgBibleGetDefaultBibleVersion`: as in 1.0.
 - `$wgBibleGetCacheExpiry`: object-cache lifetime of a fetched quote (default 30 days).
 - `$wgBibleGetMaxQuotesPerPage`: fetches allowed in one parse (default 50); further tags render as the
@@ -178,6 +180,32 @@ same model as the WordPress plugin:
 - The 30-verse limit is the same with an installation token or a project key: only BibleGet's own reader
   key goes past it.
 
+### Reaching the wiki's operators (author's decision, 2026-11-22)
+
+A registered wiki has no developer account, so BibleGet has no address for it. Two routes, both in this
+release:
+
+- **Opt-in email.** With `$wgBibleGetContactEmail` set, the extension sends it with
+  `PATCH {base}installations/self` (installation token; `contact_email`, and `plugin_version`) after
+  registering, and again when the setting or the extension version changes (the last values sent are kept
+  in `bibleget_installation`). Emptying the setting sends `""`, which removes the address. With a project
+  key the extension sends nothing: the project's owner is already known.
+- **Notices in the wiki.** BibleGet adds service notices to its answers (endpoint work, requested
+  2026-11-22; the shape is the endpoint's to decide): standard `Deprecation` / `Sunset` headers and a
+  service-notice entry beside the per-quote `notices`. The extension:
+  - keeps the notices from the latest answer (a small store, e.g. the installation table or a
+    `bibleget_notice` table: id, text, link, date first seen), so they survive cache expiry;
+  - sends an Echo notification once per new notice to the users with the right `bibleget-manage`
+    (granted to `sysop` by default), when Echo is installed (it is on Cathopedia and SeminaVerbi);
+  - without Echo, shows those users a dismissible banner until they dismiss it;
+  - lists them on `Special:BibleGet` (restricted to `bibleget-manage`), which also shows whether the wiki
+    uses a project key or a registration (never the key or token itself), the last failure and its date,
+    and the verse and rate limits in force.
+  - Limit: notices arrive only with answers, so a wiki that fetches nothing new hears nothing until it
+    does; BibleGet announces breaking changes well ahead, and by email to those who opted in.
+- Notice text from the API is escaped, and a link is shown only if it is `https:`.
+- Until the endpoint ships service notices, the extension works without them (no notices to show).
+
 ### Front end
 
 - A ResourceLoader module with the popup script and stylesheet, loaded only on pages that have a quote.
@@ -222,11 +250,15 @@ same model as the WordPress plugin:
   quotes; a set `$wgBibleGetApiKey` never registers; a `401` re-registers once with the same `install_id`
   and retries; a second `401`, a `429` and a revoked client key give the fallback and no further attempt
   before the wait; two parses at once register only once.
+- Operators: a set contact email is sent once after registering, again when it changes, `""` when
+  emptied, never with a project key; a new service notice gives one Echo notification per manager and is
+  not repeated on the next answer; without Echo the banner shows to managers only; `Special:BibleGet`
+  refuses users without `bibleget-manage`; a notice with a `javascript:` link shows no link.
 - A check that the key or token never appears in rendered output or exception messages.
 
 ## Left to the builder
 
-- Whether to offer `PATCH /installations/self` (contact email, updated version) in this release.
+- The Echo event type, banner dismissal storage and `Special:BibleGet` layout.
 
 - Class names, element structure and CSS (for example `<details>`-style or focusable markup for the
   no-JavaScript case), as long as the reader experience above holds; `span.bibleQuoteRef` is not required.
