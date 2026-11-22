@@ -167,7 +167,7 @@ class QuoteFetcher {
 		if ( $answer->isFailure() ) {
 			return $this->fresh( 'bibleget-error-reference' );
 		}
-		return [ new QuoteResult( $answer, null, false ), $this->cacheExpiry ];
+		return [ new QuoteResult( $answer, null, false ), $this->answerTtl() ];
 	}
 
 	/**
@@ -242,6 +242,14 @@ class QuoteFetcher {
 	private function markUnreachable(): void {
 		$this->unreachableUntil = (int)ConvertibleTimestamp::time() + self::UNREACHABLE_TTL;
 		$this->stash->set( $this->unreachableKey(), $this->unreachableUntil, self::UNREACHABLE_TTL );
+	}
+
+	/**
+	 * The configured expiry, give or take 15% at random: quotes fetched together (after a template edit,
+	 * or a new install) then expire over days, not all at once against BibleGet's hourly limit.
+	 */
+	private function answerTtl(): int {
+		return (int)round( $this->cacheExpiry * mt_rand( 85, 115 ) / 100 );
 	}
 
 	private function isThrottled(): bool {

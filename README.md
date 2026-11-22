@@ -51,7 +51,7 @@ Set these in `LocalSettings.php`, after `wfLoadExtension`.
 | `$wgBibleGetApiKey` | `null` | A BibleGet project key. When set, the wiki does not register. |
 | `$wgBibleGetClientKey` | `""` | Client key bundled with the extension, used only to register. |
 | `$wgBibleGetDefaultBibleVersion` | `NABRE` | Version used when a quote names none. |
-| `$wgBibleGetCacheExpiry` | `2592000` (30 days) | Seconds a fetched quote stays in the object cache. |
+| `$wgBibleGetCacheExpiry` | `2592000` (30 days) | Seconds a fetched quote stays in the object cache, give or take 15% per quote. |
 | `$wgBibleGetMaxQuotesPerPage` | `50` | Quotes rendered on one page; later ones show the fallback. |
 | `$wgBibleGetMaxVersesPerQuote` | `30` | Verses rendered for one quote. |
 

@@ -328,6 +328,21 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		$this->assertLessThanOrEqual( 60, $this->cachedTtl( $fetcher, 'NABRE', 'Jn 3,16' ) );
 	}
 
+	public function testAnswerTtlIsSpread() {
+		$fetcher = $this->fetcher();
+		$ttls = [];
+		foreach ( [ 'Jn 3,16', 'Mt 5', 'Ps 23', 'Mt 5,1-48' ] as $i => $ref ) {
+			mt_srand( $i + 1 );
+			$this->quoteAnswer = static fn () => new ApiResult( 200, self::fixture( 'good-nabre-jn3-16.html' ) );
+			$fetcher->fetch( 'NABRE', $ref, $this->user() );
+			$ttl = $this->cachedTtl( $fetcher, 'NABRE', $ref );
+			$this->assertGreaterThanOrEqual( 0.85 * self::EXPIRY - 1, $ttl );
+			$this->assertLessThanOrEqual( 1.15 * self::EXPIRY + 1, $ttl );
+			$ttls[] = (int)$ttl;
+		}
+		$this->assertGreaterThan( 1, count( array_unique( $ttls ) ), 'expiries differ' );
+	}
+
 	public function testApi429StopsEveryFetchUntilRetryAfter() {
 		$this->quoteAnswer = static fn () => new ApiResult( 429, '', 600 );
 		$this->assertSame( 'bibleget-error-ratelimit',
