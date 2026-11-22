@@ -90,11 +90,23 @@ class QuoteRendererTest extends MediaWikiIntegrationTestCase {
 		$this->assertSame( [], $out->getLinks() );
 		// The reference reaches the fetcher as written.
 		$this->assertSame( [ [ 'NABRE', 'Mt 5,3 <b>"x"</b> {{tl}} [[A]]' ] ], $this->fetcher->calls );
+	}
 
-		$html = $this->parse( '{{#biblequote:Mt 5,3 <b>"x"</b> [[A]]}}' )->getRawText();
+	public function testFunctionReferenceIsEscaped() {
+		$this->editPage( 'Template:Tl', '<b>T</b>[[B]]' );
+		// Core's preprocessor expands the part after the colon before any parser-function
+		// hook runs (that is what lets a template pass {{{1}}}), so {{tl}} is transcluded.
+		// The expanded text is still only escaped, never parsed: no HTML, no links.
+		$out = $this->parse( '{{#biblequote:Mt 5,3 <b>"x"</b> & {{tl}} [[A]]}}' );
+		$html = $out->getRawText();
 		$this->assertStringNotContainsString( '<b>', $html );
 		$this->assertStringNotContainsString( '<a ', $html );
-		$this->assertStringContainsString( '&lt;b&gt;', $html );
+		$this->assertSame( [], $out->getLinks() );
+		$this->assertStringContainsString(
+			'<span class="bibleget-failed">Mt 5,3 &lt;b&gt;"x"&lt;/b&gt; &amp; &lt;b&gt;T&lt;/b&gt;[[B]] [[A]]</span>',
+			str_replace( '&quot;', '"', $html )
+		);
+		$this->assertSame( [ [ 'NABRE', 'Mt 5,3 <b>"x"</b> & <b>T</b>[[B]] [[A]]' ] ], $this->fetcher->calls );
 	}
 
 	public function testSameReferenceFetchedOnce() {
