@@ -328,6 +328,24 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		$this->assertLessThanOrEqual( 60, $this->cachedTtl( $fetcher, 'NABRE', 'Jn 3,16' ) );
 	}
 
+	public function testApi429StopsEveryFetchUntilRetryAfter() {
+		$this->quoteAnswer = static fn () => new ApiResult( 429, '', 600 );
+		$this->assertSame( 'bibleget-error-ratelimit',
+			$this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() )->failureKey );
+		$this->assertCount( 1, $this->quotes );
+
+		// Another quote, in another request: no call while BibleGet asked to wait.
+		$this->quoteAnswer = static fn () => new ApiResult( 200, self::fixture( 'good-nabre-jn3-16.html' ) );
+		$waiting = $this->fetcher()->fetch( 'NABRE', 'Mt 5,3', $this->user() );
+		$this->assertSame( 'bibleget-error-ratelimit', $waiting->failureKey );
+		$this->assertFalse( $waiting->userLimited );
+		$this->assertCount( 1, $this->quotes );
+
+		ConvertibleTimestamp::setFakeTime( '20261122001001' );
+		$this->assertNull( $this->fetcher()->fetch( 'NABRE', 'Mt 5,3', $this->user() )->failureKey );
+		$this->assertCount( 2, $this->quotes );
+	}
+
 	public function testProjectKeyRejectedIsNotRetried() {
 		$this->quoteAnswer = static fn () => new ApiResult( 401, '{"title":"Unauthorized"}' );
 		$result = $this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );

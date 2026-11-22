@@ -22,6 +22,9 @@ class QuoteFetcher {
 	private const LAST_FAILURE_TTL = 30 * 86400;
 	/** Seconds other requests skip the API after it gave no answer. */
 	public const UNREACHABLE_TTL = 60;
+	/** Wait after an HTTP 429 without Retry-After, and the longest wait honoured */
+	public const THROTTLE_DEFAULT = 60;
+	public const THROTTLE_MAX = 3600;
 
 	/**
 	 * Until when this process skips the API after it gave no answer, without asking the stash.
@@ -87,6 +90,10 @@ class QuoteFetcher {
 			// No call: one timeout per request (and per minute) is enough.
 			return $this->failure( 'bibleget-error-network' );
 		}
+		if ( $this->isThrottled() ) {
+			// BibleGet asked this wiki to wait (HTTP 429): no quote is fetched until Retry-After has passed.
+			return new QuoteResult( null, 'bibleget-error-ratelimit', false );
+		}
 
 		// Not for maintenance scripts: a job runner's reparses run as one user for hours.
 		if ( $this->limitFetches && $user->pingLimiter( 'bibleget-fetch' ) ) {
@@ -150,6 +157,7 @@ class QuoteFetcher {
 			return $this->fresh( 'bibleget-error-version' );
 		}
 		if ( $result->status === 429 ) {
+			$this->markThrottled( $result->retryAfter );
 			return $this->fresh( 'bibleget-error-ratelimit', $result->retryAfter );
 		}
 		if ( !$answer ) {
@@ -234,6 +242,24 @@ class QuoteFetcher {
 	private function markUnreachable(): void {
 		$this->unreachableUntil = (int)ConvertibleTimestamp::time() + self::UNREACHABLE_TTL;
 		$this->stash->set( $this->unreachableKey(), $this->unreachableUntil, self::UNREACHABLE_TTL );
+	}
+
+	private function isThrottled(): bool {
+		$until = $this->stash->get( $this->throttleKey() );
+		return is_int( $until ) && $until > (int)ConvertibleTimestamp::time();
+	}
+
+	/**
+	 * Every request on this wiki waits as long as BibleGet asked: its limit is per installation, so
+	 * any further call before then would only be refused (and count against the limit) too.
+	 */
+	private function markThrottled( ?int $retryAfter ): void {
+		$wait = max( 1, min( self::THROTTLE_MAX, $retryAfter ?? self::THROTTLE_DEFAULT ) );
+		$this->stash->set( $this->throttleKey(), (int)ConvertibleTimestamp::time() + $wait, $wait );
+	}
+
+	private function throttleKey(): string {
+		return $this->stash->makeKey( 'bibleget', 'throttled' );
 	}
 
 	private function unreachableKey(): string {

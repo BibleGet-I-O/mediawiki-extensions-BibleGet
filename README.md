@@ -100,6 +100,9 @@ for this release. Until then, registration cannot work: set `$wgBibleGetApiKey` 
   Maintenance scripts are not limited: `runJobs.php` reparses (after a template edit, for example) run
   as one user for the whole process, so the limit would otherwise turn their quotes into fallbacks.
 
+- **BibleGet's own limit.** BibleGet limits each registered wiki (300 requests an hour by default). When
+  it answers HTTP 429, the wiki fetches no quote at all until its `Retry-After` time has passed (a minute
+  when there is none, an hour at most); quotes already cached still render.
 - **Quotes per page.** `$wgBibleGetMaxQuotesPerPage` (50).
 - **Cut by the API.** For copyrighted editions BibleGet itself returns at most 30 verses and says so in
   its answer. Such a quote gets the same note and tracking category as one cut by the wiki.
