@@ -56,6 +56,21 @@ class CredentialProvider {
 	}
 
 	/**
+	 * How this wiki authenticates, without registering and without exposing a credential:
+	 * 'project-key', 'registered' (an installation token is stored) or 'unregistered'.
+	 */
+	public function mode(): string {
+		if ( $this->apiKey !== null && $this->apiKey !== '' ) {
+			return 'project-key';
+		}
+		if ( $this->token !== null ) {
+			return 'registered';
+		}
+		$row = $this->store->read();
+		return $row && $row['token'] !== null ? 'registered' : 'unregistered';
+	}
+
+	/**
 	 * Message key of the reason the last get() returned null.
 	 */
 	public function lastFailure(): ?string {

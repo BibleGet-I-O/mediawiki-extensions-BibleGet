@@ -64,8 +64,8 @@ class QuoteFetcher {
 		}
 
 		if ( $user->pingLimiter( 'bibleget-fetch' ) ) {
-			// The user's limit, not the quote's: not cached.
-			return $this->failure( 'bibleget-error-ratelimit' );
+			// The user's limit, not the quote's: not cached, and not a BibleGet failure to record.
+			return new QuoteResult( null, 'bibleget-error-ratelimit', false );
 		}
 
 		[ $result, $ttl ] = $this->fetchFresh( $version, $reference );

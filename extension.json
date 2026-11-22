@@ -15,7 +15,19 @@
 		}
 	},
 	"ExtensionMessagesFiles": {
-		"BibleGetMagic": "BibleGet.i18n.magic.php"
+		"BibleGetMagic": "BibleGet.i18n.magic.php",
+		"BibleGetAlias": "BibleGet.alias.php"
+	},
+	"SpecialPages": {
+		"BibleGet": {
+			"class": "MediaWiki\\Extension\\BibleGet\\Special\\SpecialBibleGet",
+			"services": [
+				"BibleGet.CredentialProvider",
+				"BibleGet.NoticeStore",
+				"MainObjectStash",
+				"MainConfig"
+			]
+		}
 	},
 	"AutoloadNamespaces": {
 		"MediaWiki\\Extension\\BibleGet\\": "src/"

@@ -199,6 +199,12 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		$this->assertCount( 1, $this->quotes );
 	}
 
+	public function testLocalRateLimitIsNotRecordedAsLastFailure() {
+		$limited = $this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user( true ) );
+		$this->assertSame( 'bibleget-error-ratelimit', $limited->failureKey );
+		$this->assertNull( $this->lastFailure(), 'the wiki\'s own limit is not a BibleGet failure' );
+	}
+
 	public function testTimeoutIsFailure() {
 		$this->quoteAnswer = static fn () => new ApiResult( 0 );
 		$result = $this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );
