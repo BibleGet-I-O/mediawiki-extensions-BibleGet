@@ -18,6 +18,7 @@ class SiteAddressTest extends MediaWikiUnitTestCase {
 			[ 'https://8.8.8.8' ],
 			[ 'https://[2001:4860:4860::8888]' ],
 			[ 'https://[::ffff:8.8.8.8]' ],
+			'dotted-tail global IPv6' => [ 'https://[2606:4700::104.16.132.229]' ],
 		];
 	}
 
@@ -69,6 +70,14 @@ class SiteAddressTest extends MediaWikiUnitTestCase {
 			'IPv4-mapped private, dotted' => [ 'https://[::ffff:192.168.1.10]' ],
 			'IPv4-compatible private' => [ 'https://[::10.0.0.1]' ],
 			'NAT64 loopback' => [ 'https://[64:ff9b::127.0.0.1]' ],
+			'IPv4-compatible public' => [ 'https://[::8.8.8.8]' ],
+			'NAT64 public' => [ 'https://[64:ff9b::808:808]' ],
+			'IPv6 multicast' => [ 'https://[ff02::1]' ],
+			'IPv6 site-local' => [ 'https://[fec0::1]' ],
+			'IPv6 documentation' => [ 'https://[2001:db8::1]' ],
+			'IPv6 documentation (RFC 9637)' => [ 'https://[3fff::1]' ],
+			'IPv4 multicast' => [ 'https://224.0.0.1' ],
+			'home.arpa itself' => [ 'https://home.arpa' ],
 		];
 	}
 

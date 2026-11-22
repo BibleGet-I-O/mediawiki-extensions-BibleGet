@@ -16,13 +16,16 @@ class SiteAddress {
 		'private', 'test', 'example', 'invalid',
 	];
 
-	/** Ranges that FILTER_FLAG_NO_PRIV_RANGE and FILTER_FLAG_NO_RES_RANGE miss on PHP 8.1 */
-	private const INTERNAL_RANGES = [
+	/** IPv4 ranges that FILTER_FLAG_NO_PRIV_RANGE and FILTER_FLAG_NO_RES_RANGE miss on PHP 8.1 */
+	private const INTERNAL_IPV4_RANGES = [
 		'100.64.0.0/10',
-		'::1/128',
-		'::/128',
-		'fc00::/7',
-		'fe80::/10',
+		'224.0.0.0/4',
+	];
+
+	/** Documentation prefixes inside global unicast (RFC 3849, RFC 9637) */
+	private const INTERNAL_IPV6_RANGES = [
+		'2001:db8::/32',
+		'3fff::/20',
 	];
 
 	public static function isPublicHttps( string $url ): bool {
@@ -50,45 +53,44 @@ class SiteAddress {
 		if ( in_array( $last, self::INTERNAL_TLDS, true ) ) {
 			return false;
 		}
-		return !str_ends_with( $host, '.home.arpa' );
+		return $host !== 'home.arpa' && !str_ends_with( $host, '.home.arpa' );
 	}
 
+	/**
+	 * Judged from the address's bytes, the same way the API does: an IPv4-mapped IPv6 address by its
+	 * IPv4 address, any other IPv6 address only if it is global unicast (2000::/3), so IPv4-compatible
+	 * and NAT64 addresses, multicast, site-local, unique local and link-local are all refused.
+	 */
 	private static function isPublicIp( string $ip ): bool {
-		$embedded = self::embeddedIpv4( $ip );
-		if ( $embedded !== null ) {
-			return self::isPublicIp( $embedded );
-		}
-		if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) === false ) {
+		$bin = inet_pton( $ip );
+		if ( $bin === false ) {
 			return false;
 		}
-		foreach ( self::INTERNAL_RANGES as $range ) {
-			if ( self::inRange( $ip, $range ) ) {
+		if ( strlen( $bin ) === 16 ) {
+			if ( substr( $bin, 0, 12 ) === str_repeat( "\0", 10 ) . "\xff\xff" ) {
+				$ipv4 = inet_ntop( substr( $bin, 12 ) );
+				return $ipv4 !== false && self::isPublicIp( $ipv4 );
+			}
+			if ( ( ord( $bin[0] ) & 0xe0 ) !== 0x20 ) {
+				return false;
+			}
+			$ranges = self::INTERNAL_IPV6_RANGES;
+		} else {
+			$ranges = self::INTERNAL_IPV4_RANGES;
+		}
+		// The canonical form: PHP reads a dotted tail (2606:4700::104.16.132.229) as an IPv4 address.
+		$canonical = inet_ntop( $bin );
+		if ( $canonical === false || filter_var( $canonical, FILTER_VALIDATE_IP,
+			FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) === false
+		) {
+			return false;
+		}
+		foreach ( $ranges as $range ) {
+			if ( self::inRange( $canonical, $range ) ) {
 				return false;
 			}
 		}
 		return true;
-	}
-
-	/**
-	 * The IPv4 address inside an IPv4-mapped (::ffff:0:0/96), IPv4-compatible (::/96) or NAT64
-	 * (64:ff9b::/96) IPv6 address, else null: PHP 8.1's filter does not look inside these.
-	 */
-	private static function embeddedIpv4( string $ip ): ?string {
-		$bin = inet_pton( $ip );
-		if ( $bin === false || strlen( $bin ) !== 16 ) {
-			return null;
-		}
-		$prefix = substr( $bin, 0, 12 );
-		$prefixes = [
-			str_repeat( "\0", 10 ) . "\xff\xff",
-			str_repeat( "\0", 12 ),
-			"\0\x64\xff\x9b" . str_repeat( "\0", 8 ),
-		];
-		if ( !in_array( $prefix, $prefixes, true ) ) {
-			return null;
-		}
-		$ipv4 = inet_ntop( substr( $bin, 12 ) );
-		return $ipv4 === false ? null : $ipv4;
 	}
 
 	private static function inRange( string $ip, string $cidr ): bool {
