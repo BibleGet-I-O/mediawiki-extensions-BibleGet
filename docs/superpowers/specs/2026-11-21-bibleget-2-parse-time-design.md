@@ -24,7 +24,9 @@ parser cache, so readers send no requests and the key never leaves the server.
 ## Goals
 
 - A tagged reference renders as the quote's text in the page HTML, fetched from BibleGet v4 with the
-  wiki's own key.
+  wiki's own credential.
+- A new wiki works with no sign-up: the extension registers itself with BibleGet on first use (author's
+  decision, 2026-11-22). A wiki that has a project key sets it and never registers.
 - It works on any wiki with no Lua, templates or site JavaScript: `<biblequote>` and `{{#biblequote:}}`
   are enough.
 - It keeps today's reader experience on SeminaVerbi: a block quote in the text, or an inline reference
@@ -98,9 +100,15 @@ parser cache, so readers send no requests and the key never leaves the server.
 
 ### Configuration
 
-- `$wgBibleGetApiUrl`: the quote endpoint.
-- `$wgBibleGetApiKey`: the key. LocalSettings may `require` it from a file outside the web root.
-  SeminaVerbi's file returns `['url'=>…, 'key'=>…]`, so the two variables are set from it.
+- `$wgBibleGetApiBase`: the API's base address, default `https://query.bibleget.io/v4/`; the extension
+  calls `quote` and `installations` under it. SeminaVerbi sets `https://query.bibleget.io/dev/` until v4
+  is released.
+- `$wgBibleGetApiKey`: optional project key (`bibleget_live_…`), default null. When set, it is the only
+  credential used and the extension never registers. LocalSettings may `require` it from a file outside
+  the web root; SeminaVerbi's file returns `['url'=>…, 'key'=>…]`, so both settings are set from it.
+- `$wgBibleGetClientKey`: the client key (`bgclient_…`) used only to register. Its default is the key
+  bundled in that release's `extension.json`; an operator overrides it only to test against a
+  development endpoint with a `_test_` client key.
 - `$wgBibleGetDefaultBibleVersion`: as in 1.0.
 - `$wgBibleGetCacheExpiry`: object-cache lifetime of a fetched quote (default 30 days).
 - `$wgBibleGetMaxQuotesPerPage`: fetches allowed in one parse (default 50); further tags render as the
@@ -141,6 +149,35 @@ parser cache, so readers send no requests and the key never leaves the server.
   user's `pingLimiter` before each uncached fetch (defaults for anonymous users and IPs set in
   `extension.json`). Cached quotes never count against it. Over the limit, the tag renders the fallback.
 
+### Credentials and registration
+
+The extension follows BibleGet's own credential design (endpoint
+`docs/superpowers/specs/2026-11-17-api-keys-installations-design.md`, "Installation registration"), the
+same model as the WordPress plugin:
+
+- **Which credential a request uses:** `$wgBibleGetApiKey` if set; else the stored installation token;
+  else the extension registers first. The credential goes in the `X-Api-Key` header only.
+- **Registering:** `POST {base}installations` with `X-Api-Key: <client key>` and JSON
+  `{ "install_id": "<uuid>", "plugin_version": "<extension version>", "site_url": "$wgCanonicalServer" }`.
+  `201` or `200` returns `{ "token": "bginst_…", "installation_id": "…" }`. The `install_id` is a UUID the
+  extension generates once and keeps; the `token` is stored with it.
+- **Storage:** a one-row table, `bibleget_installation` (`install_id`, `token`, `installation_id`,
+  `registered_at`), created by the `LoadExtensionSchemaUpdates` hook (`update.php`). One wiki database,
+  one installation: each SeminaVerbi language wiki would register on its own, but SeminaVerbi uses the
+  project key instead. The token is secret: nothing exposes the table (no API, no special page, no log).
+- **When the token stops working** (`401` on a data route): register again once with the same
+  `install_id` (the API issues a new token and keeps the count), store it, retry the quote once. A second
+  `401` is a failure (fallback, short expiry).
+- **One registration at a time:** parallel parses take a lock (database or object-cache lock) before
+  registering, and re-read the table after getting it, so two parses never register in turn and invalidate
+  each other's tokens.
+- **Registration refused:** `429` (the client key's hourly cap; `Retry-After`) or `401` (the client key
+  was revoked) is a failure like a failed quote: fallback, short expiry, and no new registration attempt
+  before `Retry-After` (or an hour) has passed, remembered in the object cache. With a revoked client
+  key, the fix is a newer release or a project key; the failure reason says so.
+- The 30-verse limit is the same with an installation token or a project key: only BibleGet's own reader
+  key goes past it.
+
 ### Front end
 
 - A ResourceLoader module with the popup script and stylesheet, loaded only on pages that have a quote.
@@ -154,7 +191,10 @@ parser cache, so readers send no requests and the key never leaves the server.
 
 ### Rollout on SeminaVerbi (after the extension is released)
 
-1. Install 2.0 on SeminaVerbi; set the new configuration from the existing key file.
+0. Before the release, the BibleGet admin mints a client key for the MediaWiki extension
+   (`POST /admin/client-keys`) and it goes into `extension.json` for that release.
+1. Install 2.0 on SeminaVerbi; set `$wgBibleGetApiBase` and `$wgBibleGetApiKey` from the existing key
+   file, so SeminaVerbi does not register. Run `update.php` (the table is created even if unused).
 2. Change `Module:SV/BibleQuote` (seminaverbi-templates PR) to emit `frame:extensionTag('biblequote', …)`
    with the mapped `query` reference, version and display mode. It keeps the display text, the
    Nova Vulgata note and the missing-reference error. Sync it.
@@ -178,9 +218,15 @@ parser cache, so readers send no requests and the key never leaves the server.
 - The verse limit: a 48-verse public-domain answer shows 30 verses, the note and the category; a 30-verse
   answer to a 30-verse reference shows no note.
 - The rate limit: an anonymous parse over the limit renders the fallback and makes no request.
-- A check that the key never appears in rendered output or exception messages.
+- Registration, with a fake HTTP factory: first fetch with no token registers, stores the token and
+  quotes; a set `$wgBibleGetApiKey` never registers; a `401` re-registers once with the same `install_id`
+  and retries; a second `401`, a `429` and a revoked client key give the fallback and no further attempt
+  before the wait; two parses at once register only once.
+- A check that the key or token never appears in rendered output or exception messages.
 
 ## Left to the builder
+
+- Whether to offer `PATCH /installations/self` (contact email, updated version) in this release.
 
 - Class names, element structure and CSS (for example `<details>`-style or focusable markup for the
   no-JavaScript case), as long as the reader experience above holds; `span.bibleQuoteRef` is not required.
