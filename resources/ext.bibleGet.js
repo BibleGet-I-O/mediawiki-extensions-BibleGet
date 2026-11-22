@@ -102,7 +102,8 @@ function place( wrapper ) {
 				r.top - height - 6 :
 				Math.max( MARGIN, vh - height - MARGIN );
 		}
-		// A reference scrolled partly above the viewport must not push the quote's start out of view.
+		// A reference scrolled partly above the viewport must not push the quote's start
+		// out of view.
 		top = Math.max( MARGIN, top );
 	}
 	popup.style.top = top + 'px';

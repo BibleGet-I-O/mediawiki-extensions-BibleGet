@@ -41,6 +41,22 @@ Requires MediaWiki 1.43 or later and PHP 8.1 or later. The cURL extension is not
   followed by a `[!]` marker whose tooltip gives the reason, and the page is put in a tracking category.
 - A tag or function with no reference shows an error ("No Bible reference was given").
 
+### Source line
+
+Every quote ends with a line naming the edition and where the text comes from, after an em dash as in a
+citation:
+
+> — New American Bible - Revised Edition (2011) · Source: BibleGet
+
+- **Edition:** the full name and year come from BibleGet's answer. Until BibleGet has given them for an
+  edition (for a quote cached by an older release), its abbreviation (`NABRE`) stands in.
+- **The link:** "BibleGet" links to a page on the wiki itself, `Project:BibleGet` by default, not to an
+  outside site. Create that page to say where the wiki's Bible quotes come from: the BibleGet service, its
+  website, and that the copyrighted editions are used under BibleGet's agreements with their copyright
+  holders. Until it exists the link is red.
+- **Changing it:** the page is the message `MediaWiki:Bibleget-source-page`; set it to `-` for no link. The
+  line itself is `MediaWiki:Bibleget-source`.
+
 ## Settings
 
 Set these in `LocalSettings.php`, after `wfLoadExtension`.

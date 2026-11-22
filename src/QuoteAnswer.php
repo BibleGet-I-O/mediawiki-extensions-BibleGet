@@ -16,6 +16,7 @@ class QuoteAnswer {
 	 * @param bool $cappedByApi Whether the API itself capped the quote
 	 * @param array[] $notices Per-quote notices (decoded BibleGetNotices)
 	 * @param array[] $serviceNotices Service notices bundled with the answer (see ServiceNotices)
+	 * @param array[] $versions The answer's editions by sigla: [ 'name' => …, 'year' => …, 'holder' => … ]
 	 */
 	public function __construct(
 		public readonly string $html,
@@ -24,7 +25,8 @@ class QuoteAnswer {
 		public readonly bool $cut,
 		public readonly bool $cappedByApi,
 		public readonly array $notices,
-		public readonly array $serviceNotices = []
+		public readonly array $serviceNotices = [],
+		public readonly array $versions = []
 	) {
 	}
 
@@ -41,6 +43,7 @@ class QuoteAnswer {
 			'cappedByApi' => $this->cappedByApi,
 			'notices' => $this->notices,
 			'serviceNotices' => $this->serviceNotices,
+			'versions' => $this->versions,
 		];
 	}
 
@@ -52,7 +55,8 @@ class QuoteAnswer {
 			(bool)$data['cut'],
 			(bool)$data['cappedByApi'],
 			$data['notices'] ?? [],
-			$data['serviceNotices'] ?? []
+			$data['serviceNotices'] ?? [],
+			$data['versions'] ?? []
 		);
 	}
 }

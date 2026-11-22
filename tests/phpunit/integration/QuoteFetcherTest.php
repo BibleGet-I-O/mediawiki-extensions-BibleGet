@@ -175,6 +175,20 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		$this->assertNull( $this->lastFailure() );
 	}
 
+	public function testVersionInfoIsKeptPerVersion() {
+		$this->assertNull( $this->fetcher()->versionInfo( 'NABRE' ) );
+		$this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		// Any later request reads it, also for answers cached before the version was known.
+		$this->assertSame( [
+			'name' => 'New American Bible - Revised Edition',
+			'year' => '2011',
+			'holder' => 'United States Conference of Catholic Bishops',
+		], $this->fetcher()->versionInfo( 'NABRE' ) );
+		$this->assertNull( $this->fetcher()->versionInfo( 'DRB' ) );
+		$other = $this->fetcher( self::PROJECT_KEY, 'https://query.bibleget.io/dev/' );
+		$this->assertNull( $other->versionInfo( 'NABRE' ) );
+	}
+
 	public function testCacheHitNoRequest() {
 		$fetcher = $this->fetcher();
 		$first = $fetcher->fetch( 'NABRE', 'Jn 3,16', $this->user() );

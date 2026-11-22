@@ -61,6 +61,24 @@ class QuoteFetcher {
 	}
 
 	/**
+	 * What the API last said about an edition (full name, year, copyright holder), from any answer
+	 * that named it. Kept apart from the answers, so an answer cached without these details (or before
+	 * they were kept) still gets them once any quote of that edition is fetched.
+	 *
+	 * @return array|null [ 'name' => string, 'year' => string, 'holder' => string ], or null if unknown
+	 */
+	public function versionInfo( string $sigla ): ?array {
+		$info = $this->cache->get( $this->makeVersionKey( $sigla ) );
+		return is_array( $info ) && is_string( $info['name'] ?? null ) && $info['name'] !== ''
+			&& is_string( $info['year'] ?? null ) && is_string( $info['holder'] ?? null )
+			? $info : null;
+	}
+
+	private function makeVersionKey( string $sigla ): string {
+		return $this->cache->makeGlobalKey( 'bibleget-version', md5( $this->apiBase ), $sigla );
+	}
+
+	/**
 	 * Cache key of a quote's failure. Wiki-local: a failure can depend on this wiki's credential.
 	 */
 	private function makeFailureKey( string $version, string $reference ): string {
@@ -107,6 +125,9 @@ class QuoteFetcher {
 		}
 		if ( $result->answer ) {
 			$this->cache->set( $key, [ 'answer' => $result->answer->toArray() ], $ttl );
+			foreach ( $result->answer->versions as $sigla => $info ) {
+				$this->cache->set( $this->makeVersionKey( (string)$sigla ), $info, $this->cacheExpiry );
+			}
 		} else {
 			$this->cache->set( $failureKey, [ 'failure' => $result->failureKey ], $ttl );
 		}
@@ -227,7 +248,8 @@ class QuoteFetcher {
 			&& is_bool( $data['cut'] ?? null )
 			&& is_bool( $data['cappedByApi'] ?? null )
 			&& is_array( $data['notices'] ?? [] )
-			&& is_array( $data['serviceNotices'] ?? [] );
+			&& is_array( $data['serviceNotices'] ?? [] )
+			&& is_array( $data['versions'] ?? [] );
 	}
 
 	private function isUnreachable(): bool {

@@ -70,6 +70,65 @@ class QuoteRendererTest extends MediaWikiIntegrationTestCase {
 		$this->assertStringNotContainsString( 'bibleget-quote', $html );
 	}
 
+	private static function sourcePage(): Title {
+		return Title::makeTitle( NS_PROJECT, 'BibleGet' );
+	}
+
+	public function testSourceLineUnderBlockQuote() {
+		$out = $this->parse( '<biblequote ref="Jn 3,16" />' );
+		$html = $out->getRawText();
+		// The version is named once, at the bottom, in full.
+		$this->assertStringNotContainsString( 'bibleVersion', $html );
+		$this->assertMatchesRegularExpression(
+			'!</div><div class="bibleget-source">\x{2014} New American Bible - Revised Edition \(2011\) \x{00B7} '
+				. 'Source: <a [^>]*title="' . preg_quote( self::sourcePage()->getPrefixedText(), '!' )
+				. '[^"]*"[^>]*>BibleGet</a></div></div>!u',
+			$html
+		);
+		// The link is a real link of the page (WhatLinksHere, red until the page exists).
+		$this->assertArrayHasKey( 'BibleGet', $out->getLinks()[NS_PROJECT] ?? [] );
+	}
+
+	public function testSourceLineInPopup() {
+		$html = $this->parse( 'See {{#biblequote:Jn 3,16|inline}} here.' )->getRawText();
+		$this->assertStringNotContainsString( 'bibleVersion', $html );
+		$this->assertMatchesRegularExpression(
+			'!<span class="bibleget-source bibleget-block">\x{2014} New American Bible - Revised Edition \(2011\)'
+				. ' \x{00B7} Source: <a [^>]*>BibleGet</a></span></span></span>!u',
+			$html
+		);
+	}
+
+	public function testSourceLineAfterTheCutNote() {
+		$html = $this->parse( '<biblequote version="DRB">Mt 5</biblequote>' )->getRawText();
+		$this->assertMatchesRegularExpression(
+			'!<div class="bibleget-note">[^<]*</div><div class="bibleget-source">!', $html );
+	}
+
+	public function testSourceLineFromTheVersionCache() {
+		// An answer cached before the version details were kept: the fetcher still knows them.
+		$this->fetcher->dropVersions = true;
+		$this->fetcher->versionInfo['NABRE'] = [ 'name' => 'NAB <b>R</b>E', 'year' => '', 'holder' => '' ];
+		$html = $this->parse( '<biblequote>Jn 3,16</biblequote>' )->getRawText();
+		$this->assertStringContainsString( "\u{2014} NAB &lt;b&gt;R&lt;/b&gt;E \u{00B7}", $html );
+	}
+
+	public function testSourceLineFallsBackToTheSigla() {
+		$this->fetcher->dropVersions = true;
+		$html = $this->parse( '<biblequote version="DRB">Mt 5,48-6,2</biblequote>' )->getRawText();
+		$this->assertStringContainsString( "<div class=\"bibleget-source\">\u{2014} DRB \u{00B7} Source: ", $html );
+	}
+
+	public function testSourcePageCanBeTurnedOff() {
+		$this->overrideConfigValue( 'UseDatabaseMessages', true );
+		$this->getServiceContainer()->getMessageCache()->enable();
+		$this->editPage( 'MediaWiki:Bibleget-source-page', '-' );
+		$this->setService( 'BibleGet.QuoteFetcher', $this->fetcher );
+		$out = $this->parse( '<biblequote>Jn 3,16</biblequote>' );
+		$this->assertStringContainsString( "\u{00B7} Source: BibleGet</div>", $out->getRawText() );
+		$this->assertSame( [], $out->getLinks() );
+	}
+
 	public function testNoPageWithoutQuoteGetsModules() {
 		$out = $this->parse( 'Plain text.' );
 		$this->assertNotContains( 'ext.bibleGet', $out->getModules() );

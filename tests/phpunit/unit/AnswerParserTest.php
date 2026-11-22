@@ -149,9 +149,42 @@ class AnswerParserTest extends MediaWikiUnitTestCase {
 		$this->assertFalse( $a->cut );
 	}
 
+	public function testVersionsInfo() {
+		$a = $this->parse( $this->fixture( 'good-nabre-jn3-16' ) );
+		$this->assertSame( [ 'NABRE' => [
+			'name' => 'New American Bible - Revised Edition',
+			'year' => '2011',
+			'holder' => 'United States Conference of Catholic Bishops',
+		] ], $a->versions );
+		// The notes field (the last) may hold anything, pipes and newlines included.
+		$this->assertSame( "Douay\u{2013}Rheims Challoner Revision",
+			$this->parse( $this->fixture( 'full-drb-mt5' ) )->versions['DRB']['name'] );
+	}
+
+	public static function provideBadVersionsInfo(): array {
+		return [
+			'not JSON' => [ 'nope' ],
+			'a list' => [ '[]' ],
+			'not a string' => [ '{"NABRE":5}' ],
+			'bad sigla' => [ '{"NA BRE":"A|2011"}' ],
+			'no name' => [ '{"NABRE":"|2011"}' ],
+		];
+	}
+
+	/**
+	 * @dataProvider provideBadVersionsInfo
+	 */
+	public function testBadVersionsInfoIsIgnored( string $json ) {
+		$html = '<div class="results bibleQuote"><p class="verses versesParagraph"><span class="sup verseNum">1</span>'
+			. '<span class="text verseText">x</span></p></div><input type="hidden" name="bibleVersionsInfo" value="'
+			. htmlspecialchars( $json ) . '">';
+		$this->assertSame( [], $this->parse( $html )->versions );
+	}
+
 	public function testRoundTrip() {
 		$a = new QuoteAnswer( '<div class="results bibleQuote"></div>', [ [ 'num' => 3, 'message' => 'm' ] ],
-			7, true, true, [ [ 'code' => 'X' ] ], [ [ 'code' => 'Y' ] ] );
+			7, true, true, [ [ 'code' => 'X' ] ], [ [ 'code' => 'Y' ] ],
+			[ 'NABRE' => [ 'name' => 'N', 'year' => '2011', 'holder' => '' ] ] );
 		$this->assertEquals( $a, QuoteAnswer::fromArray( $a->toArray() ) );
 		$b = $this->parse( $this->fixture( 'full-drb-mt5' ) );
 		$this->assertEquals( $b, QuoteAnswer::fromArray( $b->toArray() ) );

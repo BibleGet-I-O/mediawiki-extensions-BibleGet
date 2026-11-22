@@ -45,7 +45,8 @@ class AnswerParser {
 		}
 
 		return new QuoteAnswer(
-			$out, $errors, $verseCount, $cut, $cappedByApi, $notices, self::parseServiceNotices( $xpath )
+			$out, $errors, $verseCount, $cut, $cappedByApi, $notices, self::parseServiceNotices( $xpath ),
+			self::parseVersions( $xpath )
 		);
 	}
 
@@ -78,6 +79,38 @@ class AnswerParser {
 		}
 		$decoded = json_decode( $input->getAttribute( 'value' ), true );
 		return is_array( $decoded ) ? array_values( $decoded ) : [];
+	}
+
+	/**
+	 * The editions named in the answer (input.BibleGetInfo bibleVersionsInfo): per sigla the fields
+	 * fullname|year|language|imprimatur|canon|copyright_holder|notes, of which the full name, the year
+	 * and the copyright holder are kept. An edition without a full name is left out.
+	 *
+	 * @return array[] [ sigla => [ 'name' => string, 'year' => string, 'holder' => string ] ]
+	 */
+	private static function parseVersions( DOMXPath $xpath ): array {
+		$input = $xpath->query( '//input[@name="bibleVersionsInfo"]' )->item( 0 );
+		$decoded = $input instanceof DOMElement ? json_decode( $input->getAttribute( 'value' ), true ) : null;
+		if ( !is_array( $decoded ) ) {
+			return [];
+		}
+		$versions = [];
+		foreach ( $decoded as $sigla => $info ) {
+			if ( !is_string( $sigla ) || !preg_match( '/^[A-Za-z0-9]{1,20}$/', $sigla ) || !is_string( $info ) ) {
+				continue;
+			}
+			// Only the last field (notes) may hold a "|".
+			$fields = array_map( 'trim', explode( '|', $info, 7 ) );
+			if ( $fields[0] === '' ) {
+				continue;
+			}
+			$versions[$sigla] = [
+				'name' => mb_substr( $fields[0], 0, 200 ),
+				'year' => preg_match( '/^\d{1,4}$/', $fields[1] ?? '' ) ? $fields[1] : '',
+				'holder' => mb_substr( $fields[5] ?? '', 0, 200 ),
+			];
+		}
+		return $versions;
 	}
 
 	/**

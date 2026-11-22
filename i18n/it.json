@@ -22,6 +22,8 @@
 	"bibleget-error-site-address": "Questo wiki non ha un indirizzo https pubblico, quindi non può registrarsi presso BibleGet; imposta una chiave di progetto BibleGet.",
 	"bibleget-note-cut": "{{PLURAL:$1|È mostrato solo il primo versetto|Sono mostrati solo i primi $1 versetti}}.",
 	"bibleget-popup-close": "Chiudi",
+	"bibleget-source": "— $1 · Fonte: $2",
+	"bibleget-source-edition": "$1 ($2)",
 	"right-bibleget-manage": "Gestire l'estensione BibleGet e ricevere i suoi avvisi di servizio",
 	"action-bibleget-manage": "gestire l'estensione BibleGet",
 	"bibleget-notice-banner-label": "Avviso del servizio BibleGet:",

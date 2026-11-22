@@ -3,6 +3,7 @@
 namespace MediaWiki\Extension\BibleGet\Tests;
 
 use MediaWiki\Extension\BibleGet\AnswerParser;
+use MediaWiki\Extension\BibleGet\QuoteAnswer;
 use MediaWiki\Extension\BibleGet\QuoteFetcher;
 use MediaWiki\Extension\BibleGet\QuoteResult;
 use MediaWiki\User\User;
@@ -32,6 +33,12 @@ class FakeQuoteFetcher extends QuoteFetcher {
 	/** @var array[] Recorded calls: [ version, reference ] */
 	public array $calls = [];
 
+	/** @var array[] What versionInfo() returns, by sigla */
+	public array $versionInfo = [];
+
+	/** Answer without the version details, like an answer cached before they were kept */
+	public bool $dropVersions = false;
+
 	public function __construct( private readonly int $maxVersesLimit = 30 ) {
 		// No parent constructor: nothing here reaches the client, cache or API.
 	}
@@ -57,8 +64,17 @@ class FakeQuoteFetcher extends QuoteFetcher {
 			file_get_contents( __DIR__ . '/fixtures/answers/' . $file ),
 			$this->maxVersesLimit
 		);
-		return $answer->isFailure()
-			? new QuoteResult( null, 'bibleget-error-reference', false )
-			: new QuoteResult( $answer, null, false );
+		if ( $answer->isFailure() ) {
+			return new QuoteResult( null, 'bibleget-error-reference', false );
+		}
+		if ( $this->dropVersions ) {
+			$answer = new QuoteAnswer( $answer->html, $answer->errors, $answer->verseCount, $answer->cut,
+				$answer->cappedByApi, $answer->notices, $answer->serviceNotices );
+		}
+		return new QuoteResult( $answer, null, false );
+	}
+
+	public function versionInfo( string $sigla ): ?array {
+		return $this->versionInfo[$sigla] ?? null;
 	}
 }

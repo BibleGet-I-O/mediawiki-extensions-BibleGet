@@ -22,6 +22,8 @@
 	"bibleget-error-site-address": "Dieses Wiki hat keine öffentliche https-Adresse, daher kann es sich nicht bei BibleGet registrieren; lege einen BibleGet-Projektschlüssel fest.",
 	"bibleget-note-cut": "{{PLURAL:$1|Nur der erste Vers wird|Nur die ersten $1 Verse werden}} angezeigt.",
 	"bibleget-popup-close": "Schließen",
+	"bibleget-source": "— $1 · Quelle: $2",
+	"bibleget-source-edition": "$1 ($2)",
 	"right-bibleget-manage": "Die BibleGet-Erweiterung verwalten und ihre Dienstmitteilungen erhalten",
 	"action-bibleget-manage": "die BibleGet-Erweiterung zu verwalten",
 	"bibleget-notice-banner-label": "Mitteilung des BibleGet-Dienstes:",
