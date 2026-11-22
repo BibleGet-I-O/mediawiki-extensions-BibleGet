@@ -42,7 +42,12 @@ class SiteAddress {
 		if ( count( $labels ) < 2 || in_array( '', $labels, true ) ) {
 			return false;
 		}
-		if ( in_array( end( $labels ), self::INTERNAL_TLDS, true ) ) {
+		$last = end( $labels );
+		if ( ctype_digit( $last ) || preg_match( '/^0x[0-9a-f]*$/', $last ) ) {
+			// An IPv4 address in another form (127.1, 2130706433, 0x7f.1), never a public name
+			return false;
+		}
+		if ( in_array( $last, self::INTERNAL_TLDS, true ) ) {
 			return false;
 		}
 		return !str_ends_with( $host, '.home.arpa' );
