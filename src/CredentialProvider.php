@@ -136,6 +136,17 @@ class CredentialProvider {
 		$this->logger->info( 'BibleGet rejected the installation token' );
 	}
 
+	/**
+	 * The failure to report while BibleGet asked this wiki to wait before registering again, else null.
+	 */
+	private function waitFailure(): ?string {
+		$wait = $this->stash->get( $this->waitKey() );
+		if ( is_array( $wait ) && ( $wait['until'] ?? 0 ) > ConvertibleTimestamp::time() ) {
+			return (string)( $wait['failure'] ?? 'bibleget-error-registration' );
+		}
+		return null;
+	}
+
 	private function register(): ?string {
 		if ( !SiteAddress::isPublicHttps( $this->siteUrl ) ) {
 			// Registration counts real installations: a wiki without a public https address uses a project key.
@@ -159,9 +170,9 @@ class CredentialProvider {
 		if ( $this->requestFailure !== null && $this->requestFailureUntil > self::now() ) {
 			return $this->fail( $this->requestFailure );
 		}
-		$wait = $this->stash->get( $this->waitKey() );
-		if ( is_array( $wait ) && ( $wait['until'] ?? 0 ) > ConvertibleTimestamp::time() ) {
-			return $this->fail( (string)( $wait['failure'] ?? 'bibleget-error-registration' ) );
+		$waitFailure = $this->waitFailure();
+		if ( $waitFailure !== null ) {
+			return $this->fail( $waitFailure );
 		}
 
 		if ( !$this->store->lock() ) {
@@ -181,6 +192,11 @@ class CredentialProvider {
 					// The insert left no row: the table is not usable.
 					return $this->failRequest( 'bibleget-error-setup' );
 				}
+			}
+			// A request that held the lock may have been told to wait (HTTP 429) meanwhile.
+			$waitFailure = $this->waitFailure();
+			if ( $waitFailure !== null ) {
+				return $this->fail( $waitFailure );
 			}
 			if ( $this->rejected !== null ) {
 				$this->reRegistered = true;

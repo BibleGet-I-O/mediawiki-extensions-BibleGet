@@ -219,6 +219,29 @@ class CredentialProviderTest extends MediaWikiIntegrationTestCase {
 		$this->assertCount( 2, $this->registers );
 	}
 
+	public function testWaitSetWhileQueuedForTheLockIsHonoured() {
+		// The second provider passes the wait check, then queues for the lock while the first
+		// (holding it) is told to wait: the second must not register during that wait.
+		$this->registerAnswers = [ new ApiResult( 429, '', 600 ) ];
+		$first = $this->provider();
+		$lb = $this->getServiceContainer()->getDBLoadBalancer();
+		$waitingStore = new class( $lb, $first ) extends InstallationStore {
+			public function __construct( $dbProvider, private readonly CredentialProvider $first ) {
+				parent::__construct( $dbProvider );
+			}
+
+			public function lock(): bool {
+				$this->first->get();
+				return parent::lock();
+			}
+		};
+		$second = $this->provider( null, self::CLIENT_KEY, $waitingStore );
+
+		$this->assertNull( $second->get() );
+		$this->assertSame( 'bibleget-error-registration', $second->lastFailure() );
+		$this->assertCount( 1, $this->registers );
+	}
+
 	public function testRevokedClientKeyWaitsAnHour() {
 		$this->registerAnswers = [ new ApiResult( 401, '{"title":"Unauthorized"}' ) ];
 		$provider = $this->provider();
