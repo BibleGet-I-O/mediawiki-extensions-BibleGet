@@ -2,159 +2,155 @@
 
 namespace MediaWiki\Extension\BibleGet;
 
+use MediaWiki\Extension\BibleGet\Notifications\ManagerLocator;
+use MediaWiki\Extension\BibleGet\Notifications\NoticeNotifier;
 use MediaWiki\Hook\ParserFirstCallInitHook;
+use MediaWiki\Html\Html;
+use MediaWiki\Logger\LoggerFactory;
+use MediaWiki\MediaWikiServices;
+use MediaWiki\Output\Hook\BeforePageDisplayHook;
+use MediaWiki\Output\OutputPage;
 use MediaWiki\Parser\Parser;
+use MediaWiki\Parser\PPFrame;
+use MediaWiki\Preferences\Hook\GetPreferencesHook;
+use Wikimedia\Rdbms\DBError;
 
-class Hooks implements ParserFirstCallInitHook {
+/**
+ * Registers <biblequote> and {{#biblequote:}}; both render through QuoteRenderer.
+ * Without Echo, shows the service notices to the wiki's managers in a banner.
+ */
+class Hooks implements ParserFirstCallInitHook, BeforePageDisplayHook, GetPreferencesHook {
 
-	private const VERSIONS_AVAILABLE = [
-		"NABRE",
-		"NVBSE",
-		"LUZZI",
-		"CEI2008",
-		"DRB",
-		"VGCL"
-	];
-
-	private static function isValidVersion( string $version ): bool {
-		return in_array( $version, self::VERSIONS_AVAILABLE );
-	}
+	/** User option: the notice ids the user dismissed, separated by "|". */
+	public const DISMISSED_OPTION = 'bibleget-dismissed';
 
 	/**
 	 * @param Parser $parser
 	 */
 	public function onParserFirstCallInit( $parser ): void {
-		$parser->setHook( 'biblequote', [ self::class, 'renderBibleQuoteTag' ] );
-		$parser->setFunctionHook( 'biblequote', [ self::class, 'renderBibleQuote' ] );
+		$parser->setHook( 'biblequote', [ self::class, 'renderTag' ] );
+		$parser->setFunctionHook( 'biblequote', [ self::class, 'renderFunction' ] );
 	}
 
 	/**
-	 * @param string $bibleVersion
-	 * @param string $bibleRef
-	 * @param string $hash
-	 * @return string
-	 */
-	// phpcs:ignore Generic.Files.LineLength.TooLong
-	private static function retrieveBibleQuoteFromApi( string $bibleVersion, string $bibleRef, string $hash ): string {
-		$ch = curl_init();
-		curl_setopt( $ch, CURLOPT_URL, "https://query.bibleget.io" );
-		curl_setopt( $ch, CURLOPT_POST, true );
-		// phpcs:ignore Generic.Files.LineLength.TooLong
-		curl_setopt( $ch, CURLOPT_POSTFIELDS, "query={$bibleRef}&version={$bibleVersion}&appid=SeminaVerbi&return=html" );
-		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, true );
-		$output = curl_exec( $ch );
-		curl_close( $ch );
-
-		$output = str_replace(
-			[ "\n", "\r" ],
-			'',
-			$output );
-		$output = preg_replace(
-			'/&lt;br( ){0,1}(\/){0,1}&gt;/',
-			'',
-			$output
-		);
-		$output = preg_replace(
-			'/&lt;(sm|pof|po|pol|pos|poif|poi|poil|po3|po3l|speaker|pr)&gt;/',
-			'<span class="$1">',
-			$output
-		);
-		$output = preg_replace(
-			'/&lt;\/(sm|pof|po|pol|pos|poif|poi|poil|po3|po3l|speaker|pr)&gt;/',
-			'</span>',
-			$output
-		);
-		$output = preg_replace(
-			'/&lt;(\/){0,1}i&gt;/',
-			'<$1i>',
-			$output
-		);
-		$output = preg_replace(
-			'/(bookChapter">[1-4])(\p{L})/',
-			'$1&nbsp;$2',
-			$output
-		);
-
-		file_put_contents( "bibleQuotes/{$hash}.html", $output );
-		return $output;
-	}
-
-	/**
-	 * @param string $input
+	 * <biblequote ref="…" version="…" inline="…">text shown</biblequote>
+	 *
+	 * @param string|null $input The body: the reference when there is no ref attribute, else the
+	 *  text readers see (the inline reference and the fallback), e.g. the wiki's own abbreviation
 	 * @param array $args
-	 * @return array
+	 * @param Parser $parser
+	 * @param PPFrame $frame
+	 * @return string HTML
 	 */
-	// phpcs:ignore Generic.Files.LineLength.TooLong
-	public static function renderBibleQuoteTag( ?string $input, array $args ): array {
-		global $wgBibleGetDefaultBibleVersion;
-		$bibleRef 	  = isset( $args['ref'] )
-						? $args['ref']
-						: ( $input ?? 'John3:16' );
-		$inline = isset( $args['inline'] )
-						? filter_var( $args['inline'], FILTER_VALIDATE_BOOLEAN )
-						: false;
-		$bibleVersion = $wgBibleGetDefaultBibleVersion;
-		if ( isset( $args['version'] ) ) {
-			if ( self::isValidVersion( $args['version'] ) ) {
-				$bibleVersion = $args['version'];
-			} else {
-				$inlineStr = $inline ? 'true' : 'false';
-				$html = "<span class=\"bibleQuoteRefBroken\""
-					. " data-ref=\"{$bibleRef}\" data-version=\"{$args['version']}\" data-inline=\"{$inlineStr}\""
-					. " title=\"The Bible version '{$args['version']}' is not supported by the BibleGet endpoint.\">"
-					. $bibleRef
-					. "</span>"
-					. "<sup class=\"bibleQuoteRefBrokenReason\""
-					. " title=\"The Bible version '{$args['version']}' is not supported by the BibleGet endpoint.\""
-					. ">[!]</sup>";
-				return [ $html, 'noparse' => true, 'isHTML' => true ];
-			}
-		}
-		$str = $bibleVersion . "/" . $bibleRef;
-		$tmp = preg_replace( "/\s+/", "", $str );
-		$hash = md5( $tmp );
-		if ( file_exists( "bibleQuotes/{$hash}.html" ) ) {
-			$html = file_get_contents( "bibleQuotes/{$hash}.html" );
-		} else {
-			$html = self::retrieveBibleQuoteFromApi( $bibleVersion, $bibleRef, $hash );
-		}
-		return [ $html, 'noparse' => true, 'isHTML' => true ];
+	public static function renderTag( ?string $input, array $args, Parser $parser, PPFrame $frame ): string {
+		$hasRef = isset( $args['ref'] );
+		return self::renderer()->render(
+			$parser,
+			(string)( $hasRef ? $args['ref'] : ( $input ?? '' ) ),
+			$args['version'] ?? null,
+			self::isInline( $args['inline'] ?? '' ),
+			$hasRef ? $input : null
+		);
 	}
 
 	/**
+	 * {{#biblequote:reference|display|version}}
+	 *
 	 * @param Parser $parser
-	 * @param string $bibleVersion
-	 * @param string $bibleRef
+	 * @param string $reference
+	 * @param string $display inline/true or block/false
+	 * @param string $version
 	 * @return array
 	 */
-	// phpcs:ignore Generic.Files.LineLength.TooLong
-	public static function renderBibleQuote( Parser $parser, string $bibleRef = 'John3:16', bool $inline = false, ?string $bibleVersion = null ): array {
-		global $wgBibleGetDefaultBibleVersion;
-		$bibleEdition = $wgBibleGetDefaultBibleVersion;
-		if ( $bibleVersion !== null ) {
-			if ( self::isValidVersion( $bibleVersion ) ) {
-				$bibleEdition = $bibleVersion;
-			} else {
-				$inlineStr = $inline ? 'true' : 'false';
-				$html = "<span class=\"bibleQuoteRefBroken\""
-					. " data-ref=\"{$bibleRef}\" data-version=\"{$bibleVersion}\" data-inline=\"{$inlineStr}\""
-					. " title=\"The Bible version '{$bibleVersion}' is not supported by the BibleGet endpoint.\">"
-					. $bibleRef
-					. "</span>"
-					. "<sup class=\"bibleQuoteRefBrokenReason\""
-					. " title=\"The Bible version '{$bibleVersion}' is not supported by the BibleGet endpoint.\""
-					. ">[!]</sup>";
-				return [ $html, 'noparse' => true, 'isHTML' => true ];
+	public static function renderFunction(
+		Parser $parser, string $reference = '', string $display = '', string $version = ''
+	): array {
+		$html = self::renderer()->render( $parser, $reference, $version, self::isInline( $display ) );
+		return [ $html, 'isHTML' => true ];
+	}
+
+	/**
+	 * The display argument: what 1.0 accepted for inline (a boolean), or inline/block.
+	 */
+	private static function isInline( string $display ): bool {
+		$display = strtolower( trim( $display ) );
+		return $display === 'inline' || filter_var( $display, FILTER_VALIDATE_BOOLEAN );
+	}
+
+	private static function renderer(): QuoteRenderer {
+		// Looked up per call (not injected), so a redefined fetcher is always the one used.
+		return MediaWikiServices::getInstance()->getService( 'BibleGet.QuoteRenderer' );
+	}
+
+	/**
+	 * The service notice banner, for managers when Echo is not installed.
+	 *
+	 * @param OutputPage $out
+	 * @param \Skin $skin
+	 */
+	public function onBeforePageDisplay( $out, $skin ): void {
+		$services = MediaWikiServices::getInstance();
+		/** @var NoticeNotifier $notifier */
+		$notifier = $services->getService( 'BibleGet.NoticeNotifier' );
+		$user = $out->getUser();
+		if ( $notifier->usesEcho() || !$user->isRegistered()
+			|| !$out->getAuthority()->isAllowed( ManagerLocator::RIGHT )
+		) {
+			return;
+		}
+		$dismissed = array_flip( explode( '|',
+			(string)$services->getUserOptionsLookup()->getOption( $user, self::DISMISSED_OPTION, '' )
+		) );
+		try {
+			$notices = $services->getService( 'BibleGet.NoticeStore' )->current();
+		} catch ( DBError $e ) {
+			// Most likely update.php has not run: the page must still render.
+			LoggerFactory::getInstance( 'BibleGet' )->warning(
+				'BibleGet could not read its service notices ({class}); run update.php',
+				[ 'class' => get_class( $e ) ]
+			);
+			return;
+		}
+		$html = '';
+		foreach ( $notices as $notice ) {
+			if ( !isset( $dismissed[$notice['id']] ) ) {
+				$html .= self::banner( $notice, $out );
 			}
 		}
-		$str = $bibleEdition . "/" . $bibleRef;
-		$tmp = preg_replace( "/\s+/", "", $str );
-		$hash = md5( $tmp );
-		if ( file_exists( "bibleQuotes/{$hash}.html" ) ) {
-			$html = file_get_contents( "bibleQuotes/{$hash}.html" );
-		} else {
-			$html = self::retrieveBibleQuoteFromApi( $bibleEdition, $bibleRef, $hash );
+		if ( $html !== '' ) {
+			$out->prependHTML( $html );
+			$out->addModules( 'ext.bibleGet.notices' );
 		}
-		return [ $html, 'noparse' => true, 'isHTML' => true ];
+	}
+
+	/** One notice: text and https link escaped, and a dismiss button. */
+	private static function banner( array $notice, OutputPage $out ): string {
+		$body = Html::element( 'strong', [], $out->msg( 'bibleget-notice-banner-label' )->text() )
+			. ' ' . Html::element( 'span', [ 'class' => 'bibleget-service-notice-text' ],
+				ServiceNotices::text( $notice, $out ) );
+		$link = ServiceNotices::safeLink( $notice['link'] );
+		if ( $link !== null ) {
+			$body .= ' ' . Html::element( 'a', [ 'href' => $link, 'class' => 'external', 'rel' => 'nofollow' ],
+				$out->msg( 'bibleget-notice-link' )->text() );
+		}
+		$body .= ' ' . Html::element( 'button', [
+			'type' => 'button',
+			'class' => 'bibleget-service-notice-dismiss',
+			'data-bibleget-notice' => $notice['id'],
+		], $out->msg( 'bibleget-notice-dismiss' )->text() );
+		return Html::rawElement( 'div', [
+			'class' => 'bibleget-service-notice',
+			'data-bibleget-notice' => $notice['id'],
+		], Html::warningBox( $body ) );
+	}
+
+	/**
+	 * bibleget-dismissed is set through the API (by the banner's dismiss button), not on a form.
+	 *
+	 * @param \MediaWiki\User\User $user
+	 * @param array &$preferences
+	 */
+	public function onGetPreferences( $user, &$preferences ) {
+		$preferences[self::DISMISSED_OPTION] = [ 'type' => 'api' ];
 	}
 }

@@ -2,3 +2,6 @@
 /vendor
 /node_modules
 .eslintcache
+/.worktrees
+/.superpowers
+/dev/data

@@ -1,0 +1,239 @@
+/* stylelint-disable selector-class-pattern -- class names are fixed by QuoteRenderer and the BibleGet API */
+// Bible quotes rendered by the BibleGet extension. These styles load with the page, so the
+// quotes are formatted and the inline popups work (on hover and focus) without JavaScript.
+@verse-red: #a00;
+@heading-red: #b40505;
+@text-grey: #666;
+
+.bibleget-quote,
+.bibleget-popup {
+	// The answer's classes come from the BibleGet API.
+	.results {
+		.bookChapter {
+			margin: 0;
+			color: @heading-red;
+			font-weight: bold;
+			text-align: left;
+		}
+
+		.versesParagraph {
+			margin: 0;
+			color: @text-grey;
+			line-height: 1.5em;
+			text-align: justify;
+		}
+
+		.verseNum {
+			position: relative;
+			top: -0.6em;
+			margin: 0 3px;
+			color: @verse-red;
+			font-size: 0.83em;
+			font-weight: bold;
+			vertical-align: baseline;
+		}
+
+		.sm {
+			font-variant: small-caps;
+			text-transform: lowercase;
+		}
+
+		.pof,
+		.po,
+		.pol,
+		.pos,
+		.poif,
+		.poi,
+		.poil,
+		.po3,
+		.po3l,
+		.pr {
+			display: block;
+		}
+
+		.pof,
+		.po,
+		.pol,
+		.pos {
+			margin-left: 5%;
+		}
+
+		.poif,
+		.poi,
+		.poil,
+		.po3,
+		.po3l {
+			margin-left: 7%;
+		}
+
+		.pof,
+		.po,
+		.pol,
+		.poif,
+		.poi,
+		.poil {
+			line-height: 160%;
+		}
+
+		.pos,
+		.po3,
+		.po3l {
+			line-height: 110%;
+		}
+
+		.pof {
+			margin-top: 0.1em;
+			text-indent: 0;
+		}
+
+		.pos {
+			margin-top: 0.3em;
+		}
+
+		.poif {
+			margin-top: 1%;
+		}
+
+		.pol {
+			margin-bottom: 1em;
+		}
+
+		.poil {
+			margin-bottom: 0.1em;
+		}
+
+		// A line break after a block line would leave a blank line.
+		.pof + br,
+		.po + br,
+		.pol + br,
+		.pos + br,
+		.poif + br,
+		.poi + br,
+		.poil + br,
+		.po3 + br,
+		.po3l + br {
+			display: none;
+		}
+
+		// A verse number before a poetic line sits on the line's left, not on a line of its own.
+		.verseNum:has( + .verseText > :is( .pof, .po, .pol, .pos, .poif, .poi, .poil ):first-child ) {
+			float: left;
+		}
+
+		.speaker {
+			padding: 3px;
+			border-radius: 3px;
+			background-color: #eee;
+			font-weight: bold;
+		}
+
+		.pr {
+			margin-bottom: -0.1em;
+			font-size: 0.8em;
+			font-style: italic;
+			line-height: 90%;
+			text-align: right;
+		}
+	}
+
+	.errors,
+	.info {
+		display: none;
+	}
+
+	// The popup's paragraphs are spans (see QuoteRenderer), so they need to be blocks again.
+	.bibleget-block {
+		display: block;
+	}
+}
+
+.bibleget-quote {
+	margin: 0.5em 0;
+	padding: 6px 12px;
+	border: 1px solid #a2a9b1;
+	border-radius: 6px;
+	background-color: #fff;
+}
+
+.bibleget-note {
+	margin-top: 0.5em;
+	color: #54595d;
+	font-size: 0.85em;
+	font-style: italic;
+}
+
+// The source line (QuoteRenderer): the edition and the link to the wiki's source page, last in the quote.
+.bibleget-source {
+	margin-top: 0.5em;
+	color: #54595d;
+	font-size: 0.85em;
+}
+
+.bibleget-inline {
+	position: relative;
+}
+
+.bibleget-ref {
+	display: inline-block;
+	border-bottom: 1px dashed #36b;
+	color: #36b;
+	font-weight: bold;
+	line-height: 0.8em;
+	cursor: help;
+}
+
+// Hidden until its reference is hovered or focused: no JavaScript needed. Without JavaScript the
+// popup hangs below the reference; ext.bibleGet.js moves it into view.
+.bibleget-popup {
+	display: none;
+	position: absolute;
+	top: 100%;
+	left: 0;
+	z-index: 100;
+	box-sizing: border-box;
+	width: 400px;
+	max-width: ~'calc( 100vw - 16px )';
+	padding: 9px 12px;
+	border: 1px solid #aaa;
+	background-color: #fff;
+	box-shadow: 6px 6px 12px #d3d3d3;
+	font-size: 0.8em;
+	font-weight: normal;
+	line-height: normal;
+	text-align: left;
+}
+
+/* stylelint-disable-next-line plugin/no-unsupported-browser-features */
+.bibleget-inline:hover .bibleget-popup,
+.bibleget-inline:focus-within .bibleget-popup {
+	display: block;
+}
+
+.bibleget-failed {
+	border-bottom: 1px dashed #d33;
+	color: #36b;
+	font-weight: bold;
+}
+
+.bibleget-failed-marker {
+	color: #d33;
+	font-weight: bold;
+	cursor: help;
+}
+
+@media print {
+	.bibleget-popup {
+		display: block;
+		position: static;
+		width: auto;
+		/* stylelint-disable-next-line declaration-no-important -- beats the max-width set inline by ext.bibleGet.js */
+		max-width: none !important;
+		margin: 0.3em 0;
+		box-shadow: none;
+	}
+
+	.bibleget-ref {
+		border-bottom: 0;
+		cursor: auto;
+	}
+}
