@@ -1,0 +1,40 @@
+[
+	{
+		"name": "bibleget_installation",
+		"comment": "This wiki's BibleGet installation registration (one row). The token is secret.",
+		"columns": [
+			{
+				"name": "bi_id",
+				"comment": "Always 1",
+				"type": "integer",
+				"options": { "notnull": true, "unsigned": true }
+			},
+			{
+				"name": "bi_install_id",
+				"comment": "UUID generated once by this wiki and kept on re-registration",
+				"type": "string",
+				"options": { "notnull": true, "length": 36, "fixed": true }
+			},
+			{
+				"name": "bi_token",
+				"comment": "Installation token issued by BibleGet; null before the first registration",
+				"type": "blob",
+				"options": { "notnull": false, "length": 65530 }
+			},
+			{
+				"name": "bi_installation_id",
+				"comment": "Installation id returned by BibleGet",
+				"type": "string",
+				"options": { "notnull": false, "length": 64 }
+			},
+			{
+				"name": "bi_registered_at",
+				"comment": "Timestamp of the last successful registration",
+				"type": "mwtimestamp",
+				"options": { "notnull": false }
+			}
+		],
+		"indexes": [],
+		"pk": [ "bi_id" ]
+	}
+]

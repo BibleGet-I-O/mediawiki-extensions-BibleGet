@@ -51,11 +51,17 @@
 	"HookHandlers": {
 		"main": {
 			"class": "MediaWiki\\Extension\\BibleGet\\Hooks"
+		},
+		"schema": {
+			"class": "MediaWiki\\Extension\\BibleGet\\SchemaHooks"
 		}
 	},
 	"Hooks": {
 		"ParserFirstCallInit": {
 			"handler": "main"
+		},
+		"LoadExtensionSchemaUpdates": {
+			"handler": "schema"
 		}
 	},
 	"config": {

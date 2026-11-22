@@ -8,5 +8,12 @@
 	"bibleget-tracking-category": "Pages with failed Bible quotes",
 	"bibleget-tracking-category-desc": "Pages where a Bible quote could not be fetched.",
 	"bibleget-toolong-category": "Pages with Bible quotes cut to the verse limit",
-	"bibleget-toolong-category-desc": "Pages where a Bible quote was cut to the maximum number of verses."
+	"bibleget-toolong-category-desc": "Pages where a Bible quote was cut to the maximum number of verses.",
+	"bibleget-error-network": "The BibleGet service could not be reached.",
+	"bibleget-error-status": "The BibleGet service could not give this quote.",
+	"bibleget-error-reference": "BibleGet did not recognise this reference.",
+	"bibleget-error-version": "BibleGet does not know this Bible version.",
+	"bibleget-error-ratelimit": "Too many Bible quotes were requested; try again later.",
+	"bibleget-error-registration": "This wiki could not register with the BibleGet service.",
+	"bibleget-error-clientkey-revoked": "The BibleGet service no longer accepts this version of the extension; update it or set a BibleGet project key."
 }

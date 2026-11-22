@@ -8,5 +8,12 @@
 	"bibleget-tracking-category": "Name of the tracking category for pages with failed Bible quotes.",
 	"bibleget-tracking-category-desc": "Description of the tracking category [[Special:TrackingCategories]] for pages with failed Bible quotes.",
 	"bibleget-toolong-category": "Name of the tracking category for pages with Bible quotes cut to the verse limit.",
-	"bibleget-toolong-category-desc": "Description of the tracking category [[Special:TrackingCategories]] for pages with Bible quotes cut to the verse limit."
+	"bibleget-toolong-category-desc": "Description of the tracking category [[Special:TrackingCategories]] for pages with Bible quotes cut to the verse limit.",
+	"bibleget-error-network": "Reason shown in the tooltip of a failed Bible quote: no answer from the BibleGet API (network error or timeout).",
+	"bibleget-error-status": "Reason shown in the tooltip of a failed Bible quote: the BibleGet API answered with an unexpected HTTP status.",
+	"bibleget-error-reference": "Reason shown in the tooltip of a failed Bible quote: the BibleGet API reported an error for the reference.",
+	"bibleget-error-version": "Reason shown in the tooltip of a failed Bible quote: the BibleGet API does not know the requested Bible version.",
+	"bibleget-error-ratelimit": "Reason shown in the tooltip of a failed Bible quote: the user's rate limit or the BibleGet API's rate limit was reached.",
+	"bibleget-error-registration": "Reason shown in the tooltip of a failed Bible quote: the wiki could not register with, or obtain a working credential from, the BibleGet API.",
+	"bibleget-error-clientkey-revoked": "Reason shown in the tooltip of a failed Bible quote: the BibleGet API revoked the client key bundled with this release of the extension. A \"project key\" is an API key obtained from the BibleGet developer pages."
 }

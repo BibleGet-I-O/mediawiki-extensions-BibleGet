@@ -1,8 +1,11 @@
 <?php
 
-// Service wiring for BibleGet; services are added by later tasks.
+// Service wiring for BibleGet.
 
 use MediaWiki\Extension\BibleGet\BibleGetClient;
+use MediaWiki\Extension\BibleGet\CredentialProvider;
+use MediaWiki\Extension\BibleGet\InstallationStore;
+use MediaWiki\Extension\BibleGet\QuoteFetcher;
 use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Registration\ExtensionRegistry;
@@ -14,6 +17,36 @@ return [
 			$services->getHttpRequestFactory(),
 			(string)$services->getMainConfig()->get( 'BibleGetApiBase' ),
 			$version,
+			LoggerFactory::getInstance( 'BibleGet' )
+		);
+	},
+	'BibleGet.InstallationStore' => static function ( MediaWikiServices $services ): InstallationStore {
+		return new InstallationStore( $services->getDBLoadBalancer() );
+	},
+	'BibleGet.CredentialProvider' => static function ( MediaWikiServices $services ): CredentialProvider {
+		$config = $services->getMainConfig();
+		$apiKey = $config->get( 'BibleGetApiKey' );
+		return new CredentialProvider(
+			$apiKey === null ? null : (string)$apiKey,
+			(string)$config->get( 'BibleGetClientKey' ),
+			(string)$config->get( 'CanonicalServer' ),
+			$services->getService( 'BibleGet.InstallationStore' ),
+			$services->getService( 'BibleGet.Client' ),
+			$services->getMainObjectStash(),
+			$services->getGlobalIdGenerator(),
+			LoggerFactory::getInstance( 'BibleGet' )
+		);
+	},
+	'BibleGet.QuoteFetcher' => static function ( MediaWikiServices $services ): QuoteFetcher {
+		$config = $services->getMainConfig();
+		return new QuoteFetcher(
+			$services->getService( 'BibleGet.Client' ),
+			$services->getService( 'BibleGet.CredentialProvider' ),
+			$services->getMainWANObjectCache(),
+			$services->getMainObjectStash(),
+			(string)$config->get( 'BibleGetApiBase' ),
+			(int)$config->get( 'BibleGetCacheExpiry' ),
+			(int)$config->get( 'BibleGetMaxVersesPerQuote' ),
 			LoggerFactory::getInstance( 'BibleGet' )
 		);
 	},
