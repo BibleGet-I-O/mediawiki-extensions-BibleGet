@@ -106,7 +106,7 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		$client = $this->client();
 		$store ??= new InstallationStore( $services->getDBLoadBalancer() );
 		$credentials = new CredentialProvider(
-			$apiKey, 'bgclient_test_CLIENTKEY', 'https://wiki.example.test', $store, $client,
+			$apiKey, 'bgclient_test_CLIENTKEY', 'https://wiki.example.org', $store, $client,
 			$this->stash, $services->getGlobalIdGenerator(), new NullLogger()
 		);
 		return new QuoteFetcher(

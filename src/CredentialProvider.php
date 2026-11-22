@@ -35,6 +35,7 @@ class CredentialProvider {
 	private int $requestFailureUntil = 0;
 	/** Until when the tables are taken to be missing (update.php not run) */
 	private int $setupFailureUntil = 0;
+	private bool $loggedSiteAddress = false;
 
 	public function __construct(
 		private readonly ?string $apiKey,
@@ -88,7 +89,8 @@ class CredentialProvider {
 
 	/**
 	 * How this wiki authenticates, without registering and without exposing a credential:
-	 * 'project-key', 'registered' (an installation token is stored) or 'unregistered'.
+	 * 'project-key', 'registered' (an installation token is stored), 'site-address' (the wiki's address is
+	 * internal, so it does not register) or 'unregistered'.
 	 */
 	public function mode(): string {
 		if ( $this->apiKey !== null && $this->apiKey !== '' ) {
@@ -98,7 +100,17 @@ class CredentialProvider {
 			return 'registered';
 		}
 		$row = $this->store->read();
-		return $row && $row['token'] !== null ? 'registered' : 'unregistered';
+		if ( $row && $row['token'] !== null ) {
+			return 'registered';
+		}
+		return SiteAddress::isPublicHttps( $this->siteUrl ) ? 'unregistered' : 'site-address';
+	}
+
+	/**
+	 * The wiki's address, as registration would send it.
+	 */
+	public function siteUrl(): string {
+		return $this->siteUrl;
 	}
 
 	/**
@@ -125,6 +137,17 @@ class CredentialProvider {
 	}
 
 	private function register(): ?string {
+		if ( !SiteAddress::isPublicHttps( $this->siteUrl ) ) {
+			// Registration counts real installations: a wiki without a public https address uses a project key.
+			if ( !$this->loggedSiteAddress ) {
+				$this->logger->warning(
+					'BibleGet: this wiki\'s address is not a public https address, so it does not register; ' .
+						'set $wgBibleGetApiKey'
+				);
+				$this->loggedSiteAddress = true;
+			}
+			return $this->fail( 'bibleget-error-site-address' );
+		}
 		if ( $this->clientKey === '' ) {
 			$this->logger->warning( 'BibleGet: no client key to register this wiki and no project key' );
 			return $this->fail( 'bibleget-error-registration' );

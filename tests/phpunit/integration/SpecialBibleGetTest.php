@@ -29,12 +29,14 @@ class SpecialBibleGetTest extends SpecialPageTestBase {
 
 	private BagOStuff $stash;
 	private ?string $apiKey = null;
+	private string $site = 'https://wiki.example.org';
 	private ?NoticeStore $noticeStore = null;
 
 	protected function setUp(): void {
 		parent::setUp();
 		$this->stash = new HashBagOStuff();
 		$this->apiKey = null;
+		$this->site = 'https://wiki.example.org';
 		$this->noticeStore = null;
 		ConvertibleTimestamp::setFakeTime( '20261122120000' );
 		$this->overrideConfigValue( 'RateLimits', [
@@ -54,7 +56,7 @@ class SpecialBibleGetTest extends SpecialPageTestBase {
 	protected function newSpecialPage() {
 		$services = $this->getServiceContainer();
 		$credentials = new CredentialProvider(
-			$this->apiKey, 'bgclient_test', 'https://wiki.example.test',
+			$this->apiKey, 'bgclient_test', $this->site,
 			new InstallationStore( $services->getDBLoadBalancer() ),
 			new BibleGetClient(
 				$this->createMock( HttpRequestFactory::class ), 'https://x.test/', '2', new NullLogger()
@@ -101,6 +103,15 @@ class SpecialBibleGetTest extends SpecialPageTestBase {
 		$this->assertStringContainsString( 'not registered', $this->render() );
 	}
 
+	public function testInternalAddressMode() {
+		$this->site = 'http://localhost:8043';
+		$html = $this->render();
+		$this->assertStringContainsString( 'not a public https address', $html );
+		$this->assertStringContainsString( 'localhost', $html );
+		$this->assertStringContainsString( '$wgBibleGetApiKey', $html );
+		$this->assertStringNotContainsString( 'not registered', $html );
+	}
+
 	public function testProjectKeyModeHidesKey() {
 		$this->apiKey = self::PROJECT_KEY;
 		$html = $this->render();
@@ -145,14 +156,14 @@ class SpecialBibleGetTest extends SpecialPageTestBase {
 		};
 		$services = $this->getServiceContainer();
 		$provider = new CredentialProvider(
-			null, 'bgclient_test', 'https://wiki.example.test',
+			null, 'bgclient_test', 'https://wiki.example.org',
 			new InstallationStore( $services->getDBLoadBalancer() ), $client,
 			$this->stash, $services->getGlobalIdGenerator(), new NullLogger()
 		);
 		$this->assertSame( 'unregistered', $provider->mode() );
 		$this->assertFalse( $called );
 		$this->assertSame( 'unregistered', ( new CredentialProvider(
-			'', 'k', 'u', new InstallationStore( $services->getDBLoadBalancer() ), $client,
+			'', 'k', 'https://wiki.example.org', new InstallationStore( $services->getDBLoadBalancer() ), $client,
 			$this->stash, $services->getGlobalIdGenerator(), new NullLogger()
 		) )->mode() );
 	}

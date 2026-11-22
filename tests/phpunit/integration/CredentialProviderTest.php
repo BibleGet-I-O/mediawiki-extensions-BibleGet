@@ -24,7 +24,7 @@ use Wikimedia\Timestamp\ConvertibleTimestamp;
 class CredentialProviderTest extends MediaWikiIntegrationTestCase {
 
 	private const CLIENT_KEY = 'bgclient_test_CLIENTKEY';
-	private const SITE = 'https://wiki.example.test';
+	private const SITE = 'https://wiki.example.org';
 
 	/** @var array[] Recorded register calls: [ clientKey, installId, siteUrl ] */
 	private array $registers = [];
@@ -102,12 +102,13 @@ class CredentialProviderTest extends MediaWikiIntegrationTestCase {
 	private function provider(
 		?string $apiKey = null,
 		string $clientKey = self::CLIENT_KEY,
-		?InstallationStore $store = null
+		?InstallationStore $store = null,
+		string $site = self::SITE
 	): CredentialProvider {
 		return new CredentialProvider(
 			$apiKey,
 			$clientKey,
-			self::SITE,
+			$site,
 			$store ?? $this->store(),
 			$this->client(),
 			$this->stash,
@@ -132,6 +133,31 @@ class CredentialProviderTest extends MediaWikiIntegrationTestCase {
 		$this->assertSame( 'bibleget_live_PROJECTKEY', $provider->get() );
 		$this->assertSame( [], $this->registers );
 		$this->assertSame( 0, $this->rowCount() );
+	}
+
+	public function testInternalSiteNeverRegisters() {
+		$provider = $this->provider( null, self::CLIENT_KEY, null, 'http://localhost:8043' );
+		$this->assertSame( 'site-address', $provider->mode() );
+		$this->assertNull( $provider->get() );
+		$this->assertSame( 'bibleget-error-site-address', $provider->lastFailure() );
+		$this->assertNull( $provider->get() );
+		$this->assertSame( [], $this->registers );
+		$this->assertSame( 0, $this->rowCount() );
+	}
+
+	public function testHttpSiteNeverRegisters() {
+		$provider = $this->provider( null, self::CLIENT_KEY, null, 'http://wiki.example.org' );
+		$this->assertSame( 'site-address', $provider->mode() );
+		$this->assertNull( $provider->get() );
+		$this->assertSame( 'bibleget-error-site-address', $provider->lastFailure() );
+		$this->assertSame( [], $this->registers );
+	}
+
+	public function testProjectKeyWorksOnInternalSite() {
+		$provider = $this->provider( 'bibleget_live_PROJECTKEY', self::CLIENT_KEY, null, 'http://192.168.1.10' );
+		$this->assertSame( 'project-key', $provider->mode() );
+		$this->assertSame( 'bibleget_live_PROJECTKEY', $provider->get() );
+		$this->assertSame( [], $this->registers );
 	}
 
 	public function testFirstUseRegisters() {

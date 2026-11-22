@@ -57,7 +57,9 @@ class SpecialBibleGet extends SpecialPage {
 			return '';
 		}
 		return Html::element( 'h2', [], $this->msg( 'bibleget-special-mode-heading' )->text() )
-			. Html::element( 'p', [], $this->msg( 'bibleget-special-mode-' . $mode )->text() );
+			// Messages: bibleget-special-mode-project-key, -registered, -site-address, -unregistered
+			. Html::element( 'p', [], $this->msg( 'bibleget-special-mode-' . $mode )
+				->plaintextParams( $this->credentials->siteUrl() )->text() );
 	}
 
 	private function limitsSection(): string {

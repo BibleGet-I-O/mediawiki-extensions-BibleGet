@@ -63,6 +63,12 @@ for this release. Until then, registration cannot work: set `$wgBibleGetApiKey` 
   `bibleget_installation` table. If BibleGet rejects the token, the wiki registers again and retries once.
   Registration sends the site URL (`$wgCanonicalServer`), a random installation id and the extension
   version; no email address or other personal data is sent.
+- **Only public https wikis register.** Registration counts real installations, so a wiki whose
+  `$wgCanonicalServer` is not a public https address never registers and never sends its address: an
+  `http://` address, `localhost`, a private or reserved IP address, a name without a dot, or a name under
+  a non-public domain (`.local`, `.lan`, `.internal`, `.test`, `.home.arpa` and similar). Quotes on such a
+  wiki (a test or intranet wiki) show the fallback until you request a project key on the BibleGet
+  website and set `$wgBibleGetApiKey`; `Special:BibleGet` says so.
 - **When registration fails.** A refusal with HTTP 429 waits for the `Retry-After` time (an hour when
   there is none). A revoked client key (HTTP 401) waits an hour; update the extension or set a project
   key. Other failures, such as a network error, are retried after a short pause (a few minutes).

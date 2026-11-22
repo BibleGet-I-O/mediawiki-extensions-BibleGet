@@ -10,7 +10,9 @@ All notable changes to this extension are documented here. The format follows
 - Quotes are fetched from the BibleGet v4 API at parse time and kept in the parser cache and the object
   cache (`$wgBibleGetCacheExpiry`). Readers send no requests.
 - Automatic registration with BibleGet (`$wgBibleGetClientKey`), unless a project key is set in
-  `$wgBibleGetApiKey`. The token is stored in the new `bibleget_installation` table.
+  `$wgBibleGetApiKey`. The token is stored in the new `bibleget_installation` table. Only a wiki whose
+  `$wgCanonicalServer` is a public https address registers; any other wiki (http, localhost, a private IP
+  address, an intranet name) needs a project key.
 - Limit of 30 verses per quote (`$wgBibleGetMaxVersesPerQuote`) with a note when a quote is cut, and a limit
   of 50 quotes per page (`$wgBibleGetMaxQuotesPerPage`). A quote the API itself cut (its `VERSES_CAPPED`
   notice) gets the same note and tracking category.
