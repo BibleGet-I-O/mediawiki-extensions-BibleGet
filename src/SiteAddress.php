@@ -54,6 +54,10 @@ class SiteAddress {
 	}
 
 	private static function isPublicIp( string $ip ): bool {
+		$embedded = self::embeddedIpv4( $ip );
+		if ( $embedded !== null ) {
+			return self::isPublicIp( $embedded );
+		}
 		if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) === false ) {
 			return false;
 		}
@@ -63,6 +67,28 @@ class SiteAddress {
 			}
 		}
 		return true;
+	}
+
+	/**
+	 * The IPv4 address inside an IPv4-mapped (::ffff:0:0/96), IPv4-compatible (::/96) or NAT64
+	 * (64:ff9b::/96) IPv6 address, else null: PHP 8.1's filter does not look inside these.
+	 */
+	private static function embeddedIpv4( string $ip ): ?string {
+		$bin = inet_pton( $ip );
+		if ( $bin === false || strlen( $bin ) !== 16 ) {
+			return null;
+		}
+		$prefix = substr( $bin, 0, 12 );
+		$prefixes = [
+			str_repeat( "\0", 10 ) . "\xff\xff",
+			str_repeat( "\0", 12 ),
+			"\0\x64\xff\x9b" . str_repeat( "\0", 8 ),
+		];
+		if ( !in_array( $prefix, $prefixes, true ) ) {
+			return null;
+		}
+		$ipv4 = inet_ntop( substr( $bin, 12 ) );
+		return $ipv4 === false ? null : $ipv4;
 	}
 
 	private static function inRange( string $ip, string $cidr ): bool {

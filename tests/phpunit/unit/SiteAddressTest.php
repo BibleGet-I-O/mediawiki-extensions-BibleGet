@@ -17,6 +17,7 @@ class SiteAddressTest extends MediaWikiUnitTestCase {
 			[ 'https://WIKI.Example.ORG.' ],
 			[ 'https://8.8.8.8' ],
 			[ 'https://[2001:4860:4860::8888]' ],
+			[ 'https://[::ffff:8.8.8.8]' ],
 		];
 	}
 
@@ -64,6 +65,10 @@ class SiteAddressTest extends MediaWikiUnitTestCase {
 			'IPv6 loopback' => [ 'https://[::1]' ],
 			'IPv6 unique local' => [ 'https://[fd12:3456::1]' ],
 			'IPv6 link-local' => [ 'https://[fe80::1]' ],
+			'IPv4-mapped loopback' => [ 'https://[::ffff:7f00:1]' ],
+			'IPv4-mapped private, dotted' => [ 'https://[::ffff:192.168.1.10]' ],
+			'IPv4-compatible private' => [ 'https://[::10.0.0.1]' ],
+			'NAT64 loopback' => [ 'https://[64:ff9b::127.0.0.1]' ],
 		];
 	}
 
