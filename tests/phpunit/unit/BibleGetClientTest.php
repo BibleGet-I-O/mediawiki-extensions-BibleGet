@@ -37,7 +37,8 @@ class BibleGetClientTest extends MediaWikiUnitTestCase {
 		if ( $throws ) {
 			$req->method( 'execute' )->willThrowException( $throws );
 		} else {
-			$req->method( 'execute' )->willReturn( ( $fails || $badStatus ) ? Status::newFatal( 'http-bad-status' ) : Status::newGood() );
+			$bad = $fails || $badStatus;
+			$req->method( 'execute' )->willReturn( $bad ? Status::newFatal( 'http-bad-status' ) : Status::newGood() );
 		}
 		$req->method( 'getStatus' )->willReturn( $fails ? 0 : $status );
 		$req->method( 'getContent' )->willReturn( $fails ? '' : $body );
