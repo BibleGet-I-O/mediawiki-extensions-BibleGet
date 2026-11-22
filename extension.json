@@ -38,9 +38,7 @@
 	},
 	"RateLimits": {
 		"bibleget-fetch": {
-			"anon": {
-				"ip": [ 30, 60 ]
-			},
+			"anon": [ 30, 60 ],
 			"ip": [ 30, 60 ],
 			"newbie": [ 30, 60 ],
 			"user": [ 120, 60 ]
