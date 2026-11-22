@@ -227,7 +227,8 @@
 		display: block;
 		position: static;
 		width: auto;
-		max-width: none;
+		/* stylelint-disable-next-line declaration-no-important -- beats the max-width set inline by ext.bibleGet.js */
+		max-width: none !important;
 		margin: 0.3em 0;
 		box-shadow: none;
 	}

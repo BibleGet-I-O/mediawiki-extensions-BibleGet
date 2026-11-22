@@ -72,7 +72,8 @@ function place( wrapper ) {
 	const vw = document.documentElement.clientWidth;
 	const vh = window.innerHeight;
 
-	wrapper.classList.remove( 'bibleget-dismissed' );
+	// Measure unclamped: the sticky max-height would hide a popup taller than the viewport.
+	wrapper.classList.remove( 'bibleget-dismissed', 'bibleget-sticky' );
 	wrapper.classList.add( 'bibleget-open' );
 	popup.classList.add( 'bibleget-placed' );
 	popup.classList.remove( 'bibleget-tall' );
