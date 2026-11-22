@@ -16,6 +16,8 @@ docker compose exec -T mediawiki sh -c '
     cp LocalSettings.php /var/www/data/LocalSettings.php
   fi
   chown -R www-data:www-data /var/www/data images
+  # Create or update the BibleGet tables (also repairs a database restored from an older run)
+  php maintenance/run.php update --quick >/dev/null
   if [ ! -x vendor/bin/phpunit ]; then
     apt-get -qq update >/dev/null && DEBIAN_FRONTEND=noninteractive apt-get -qq install -y unzip git nodejs npm >/dev/null
     if [ ! -x /usr/local/bin/composer ]; then
