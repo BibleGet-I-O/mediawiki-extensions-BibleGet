@@ -9,8 +9,8 @@ use MediaWiki\Extension\BibleGet\CredentialProvider;
 use MediaWiki\Extension\BibleGet\InstallationStore;
 use MediaWiki\Extension\BibleGet\NoticeStore;
 use MediaWiki\Extension\BibleGet\Special\SpecialBibleGet;
+use MediaWiki\Extension\BibleGet\Tests\FakeQuoteFetcher;
 use MediaWiki\Http\HttpRequestFactory;
-use PermissionsError;
 use Psr\Log\NullLogger;
 use SpecialPageTestBase;
 use Wikimedia\ObjectCache\BagOStuff;
@@ -31,6 +31,7 @@ class SpecialBibleGetTest extends SpecialPageTestBase {
 	private ?string $apiKey = null;
 	private string $site = 'https://wiki.example.org';
 	private ?NoticeStore $noticeStore = null;
+	private FakeQuoteFetcher $fetcher;
 
 	protected function setUp(): void {
 		parent::setUp();
@@ -38,6 +39,7 @@ class SpecialBibleGetTest extends SpecialPageTestBase {
 		$this->apiKey = null;
 		$this->site = 'https://wiki.example.org';
 		$this->noticeStore = null;
+		$this->fetcher = new FakeQuoteFetcher();
 		ConvertibleTimestamp::setFakeTime( '20261122120000' );
 		$this->overrideConfigValue( 'RateLimits', [
 			'bibleget-fetch' => [
@@ -67,7 +69,8 @@ class SpecialBibleGetTest extends SpecialPageTestBase {
 			$credentials,
 			$this->noticeStore ?? new NoticeStore( $services->getDBLoadBalancer() ),
 			$this->stash,
-			$services->getMainConfig()
+			$services->getMainConfig(),
+			$this->fetcher
 		);
 	}
 
@@ -80,14 +83,57 @@ class SpecialBibleGetTest extends SpecialPageTestBase {
 		return $html;
 	}
 
-	public function testNonManagerGetsPermissionError() {
-		$this->expectException( PermissionsError::class );
-		$this->executeSpecialPage( '', null, 'en', $this->getTestUser()->getUser() );
+	public static function provideReaders(): array {
+		return [ 'anonymous' => [ false ], 'logged in, not a manager' => [ true ] ];
 	}
 
-	public function testAnonGetsPermissionError() {
-		$this->expectException( PermissionsError::class );
-		$this->executeSpecialPage( '', null, 'en', $this->getServiceContainer()->getUserFactory()->newAnonymous() );
+	/**
+	 * Every quote's source line links here: readers see where the quotes come from, not the status.
+	 *
+	 * @dataProvider provideReaders
+	 */
+	public function testReadersSeeOnlyTheSource( bool $loggedIn ) {
+		$this->apiKey = self::PROJECT_KEY;
+		$user = $loggedIn ? $this->getTestUser()->getUser()
+			: $this->getServiceContainer()->getUserFactory()->newAnonymous();
+		[ $html ] = $this->executeSpecialPage( '', null, 'en', $user );
+		$this->assertStringContainsString( wfMessage( 'bibleget-special-source-heading' )->text(), $html );
+		$this->assertStringContainsString( 'href="https://www.bibleget.io"', $html );
+		$this->assertStringContainsString( 'href="https://catholicdigitalcommons.org"', $html );
+		$this->assertStringNotContainsString( wfMessage( 'bibleget-special-mode-heading' )->text(), $html );
+		$this->assertStringNotContainsString( wfMessage( 'bibleget-special-limits-heading' )->text(), $html );
+		$this->assertStringNotContainsString( 'SECRET', $html );
+	}
+
+	public function testManagerSeesSourceAndStatus() {
+		$html = $this->render();
+		$this->assertStringContainsString( wfMessage( 'bibleget-special-source-heading' )->text(), $html );
+		$this->assertStringContainsString( wfMessage( 'bibleget-special-mode-heading' )->text(), $html );
+	}
+
+	public function testCopyrightLinkIsAMessage() {
+		$html = $this->render();
+		$url = wfMessage( 'bibleget-copyright-url' )->inContentLanguage()->text();
+		$this->assertStringContainsString( 'href="' . htmlspecialchars( $url ) . '"', $html );
+	}
+
+	public function testEditionsQuotedAreListed() {
+		$this->fetcher->versionInfo = [
+			'NABRE' => [ 'name' => 'New American Bible - Revised Edition', 'year' => '2011',
+				'holder' => 'United States Conference of Catholic Bishops' ],
+			'DRB' => [ 'name' => 'Douay <b>Rheims</b>', 'year' => '1752', 'holder' => '' ],
+		];
+		[ $html ] = $this->executeSpecialPage( '', null, 'en',
+			$this->getServiceContainer()->getUserFactory()->newAnonymous() );
+		$this->assertMatchesRegularExpression( '!<td>New American Bible - Revised Edition</td>\s*<td>NABRE</td>'
+			. '\s*<td>2011</td>\s*<td>United States Conference of Catholic Bishops</td>!', $html );
+		$this->assertStringContainsString( 'Douay &lt;b', $html );
+		$this->assertStringNotContainsString( '<b>', $html );
+		$this->assertStringNotContainsString( wfMessage( 'bibleget-special-editions-none' )->text(), $html );
+	}
+
+	public function testNoEditionsYet() {
+		$this->assertStringContainsString( wfMessage( 'bibleget-special-editions-none' )->text(), $this->render() );
 	}
 
 	public function testManagerSeesLimitsAndRateLimits() {

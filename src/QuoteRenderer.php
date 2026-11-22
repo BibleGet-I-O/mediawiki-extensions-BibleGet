@@ -15,7 +15,7 @@ use WeakMap;
  * Turns a reference into page HTML: the quote as a block or an inline popup, or the
  * fallback (the escaped display text, by default the reference, and a [!] marker) when the quote cannot be had.
  * A quote ends with its source line: the edition's full name and year, and a link to the wiki's page
- * on where its Bible quotes come from (the bibleget-source-page message, Project:BibleGet by default).
+ * on where its Bible quotes come from (the bibleget-source-page message, Special:BibleGet by default).
  */
 class QuoteRenderer {
 
@@ -158,8 +158,11 @@ class QuoteRenderer {
 		$link = htmlspecialchars( $name );
 		$page = $parser->msg( 'bibleget-source-page' )->inContentLanguage();
 		$title = $page->isDisabled() ? null : Title::newFromText( $page->plain() );
-		if ( $title !== null && $title->canExist() && !$title->isExternal() ) {
-			$output->addLink( $title );
+		if ( $title !== null && !$title->isExternal() && ( $title->canExist() || $title->isSpecialPage() ) ) {
+			if ( !$title->isSpecialPage() ) {
+				// A wiki page is a page link (WhatLinksHere); the default, Special:BibleGet, is not.
+				$output->addLink( $title );
+			}
 			$link = $parser->getLinkRenderer()->makeLink( $title, $name );
 		}
 		return Html::rawElement( 'div', [ 'class' => 'bibleget-source' ],

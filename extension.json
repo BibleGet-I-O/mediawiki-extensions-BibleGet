@@ -25,7 +25,8 @@
 				"BibleGet.CredentialProvider",
 				"BibleGet.NoticeStore",
 				"MainObjectStash",
-				"MainConfig"
+				"MainConfig",
+				"BibleGet.QuoteFetcher"
 			]
 		}
 	},

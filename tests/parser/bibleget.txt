@@ -14,7 +14,7 @@ biblequote tag: reference in the ref attribute, block
 !! wikitext
 <biblequote ref="Jn 3,16" version="NABRE" />
 !! html/php
-<div class="bibleget-quote"><div class="results bibleQuote"><p class="book bookChapter">John&#160;3</p><p class="verses versesParagraph"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></p></div><div class="bibleget-source">— New American Bible - Revised Edition (2011) · Source: <a href="/index.php?title=TestWiki:BibleGet&amp;action=edit&amp;redlink=1" class="new" title="TestWiki:BibleGet (page does not exist)">BibleGet</a></div></div>
+<div class="bibleget-quote"><div class="results bibleQuote"><p class="book bookChapter">John&#160;3</p><p class="verses versesParagraph"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></p></div><div class="bibleget-source">— New American Bible - Revised Edition (2011) · Source: <a href="/wiki/Special:BibleGet" title="Special:BibleGet">BibleGet</a></div></div>
 !! end
 
 !! test
@@ -22,7 +22,7 @@ biblequote tag: reference in the body, default version
 !! wikitext
 <biblequote>Jn 3,16</biblequote>
 !! html/php
-<div class="bibleget-quote"><div class="results bibleQuote"><p class="book bookChapter">John&#160;3</p><p class="verses versesParagraph"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></p></div><div class="bibleget-source">— New American Bible - Revised Edition (2011) · Source: <a href="/index.php?title=TestWiki:BibleGet&amp;action=edit&amp;redlink=1" class="new" title="TestWiki:BibleGet (page does not exist)">BibleGet</a></div></div>
+<div class="bibleget-quote"><div class="results bibleQuote"><p class="book bookChapter">John&#160;3</p><p class="verses versesParagraph"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></p></div><div class="bibleget-source">— New American Bible - Revised Edition (2011) · Source: <a href="/wiki/Special:BibleGet" title="Special:BibleGet">BibleGet</a></div></div>
 !! end
 
 !! test
@@ -30,7 +30,7 @@ biblequote tag: inline="true"
 !! wikitext
 See <biblequote ref="Jn 3,16" inline="true" /> here.
 !! html/php
-<p>See <span class="bibleget-inline"><span class="bibleget-ref" tabindex="0">Jn 3,16</span><span class="bibleget-popup"><span class="results bibleQuote bibleget-block"><span class="book bookChapter bibleget-block">John&#160;3</span><span class="verses versesParagraph bibleget-block"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></span></span><span class="bibleget-source bibleget-block">— New American Bible - Revised Edition (2011) · Source: <a href="/index.php?title=TestWiki:BibleGet&amp;action=edit&amp;redlink=1" class="new" title="TestWiki:BibleGet (page does not exist)">BibleGet</a></span></span></span> here.
+<p>See <span class="bibleget-inline"><span class="bibleget-ref" tabindex="0">Jn 3,16</span><span class="bibleget-popup"><span class="results bibleQuote bibleget-block"><span class="book bookChapter bibleget-block">John&#160;3</span><span class="verses versesParagraph bibleget-block"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></span></span><span class="bibleget-source bibleget-block">— New American Bible - Revised Edition (2011) · Source: <a href="/wiki/Special:BibleGet" title="Special:BibleGet">BibleGet</a></span></span></span> here.
 </p>
 !! end
 
@@ -39,7 +39,7 @@ See <biblequote ref="Jn 3,16" inline="true" /> here.
 !! wikitext
 See {{#biblequote:Jn 3,16|inline|NABRE}} here.
 !! html/php
-<p>See <span class="bibleget-inline"><span class="bibleget-ref" tabindex="0">Jn 3,16</span><span class="bibleget-popup"><span class="results bibleQuote bibleget-block"><span class="book bookChapter bibleget-block">John&#160;3</span><span class="verses versesParagraph bibleget-block"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></span></span><span class="bibleget-source bibleget-block">— New American Bible - Revised Edition (2011) · Source: <a href="/index.php?title=TestWiki:BibleGet&amp;action=edit&amp;redlink=1" class="new" title="TestWiki:BibleGet (page does not exist)">BibleGet</a></span></span></span> here.
+<p>See <span class="bibleget-inline"><span class="bibleget-ref" tabindex="0">Jn 3,16</span><span class="bibleget-popup"><span class="results bibleQuote bibleget-block"><span class="book bookChapter bibleget-block">John&#160;3</span><span class="verses versesParagraph bibleget-block"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></span></span><span class="bibleget-source bibleget-block">— New American Bible - Revised Edition (2011) · Source: <a href="/wiki/Special:BibleGet" title="Special:BibleGet">BibleGet</a></span></span></span> here.
 </p>
 !! end
 
@@ -48,7 +48,7 @@ See {{#biblequote:Jn 3,16|inline|NABRE}} here.
 !! wikitext
 See {{#biblequote:Jn 3,16|true|NABRE}} here.
 !! html/php
-<p>See <span class="bibleget-inline"><span class="bibleget-ref" tabindex="0">Jn 3,16</span><span class="bibleget-popup"><span class="results bibleQuote bibleget-block"><span class="book bookChapter bibleget-block">John&#160;3</span><span class="verses versesParagraph bibleget-block"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></span></span><span class="bibleget-source bibleget-block">— New American Bible - Revised Edition (2011) · Source: <a href="/index.php?title=TestWiki:BibleGet&amp;action=edit&amp;redlink=1" class="new" title="TestWiki:BibleGet (page does not exist)">BibleGet</a></span></span></span> here.
+<p>See <span class="bibleget-inline"><span class="bibleget-ref" tabindex="0">Jn 3,16</span><span class="bibleget-popup"><span class="results bibleQuote bibleget-block"><span class="book bookChapter bibleget-block">John&#160;3</span><span class="verses versesParagraph bibleget-block"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></span></span><span class="bibleget-source bibleget-block">— New American Bible - Revised Edition (2011) · Source: <a href="/wiki/Special:BibleGet" title="Special:BibleGet">BibleGet</a></span></span></span> here.
 </p>
 !! end
 
@@ -57,7 +57,7 @@ See {{#biblequote:Jn 3,16|true|NABRE}} here.
 !! wikitext
 {{#biblequote:Jn 3,16|block|NABRE}}
 !! html/php
-<div class="bibleget-quote"><div class="results bibleQuote"><p class="book bookChapter">John&#160;3</p><p class="verses versesParagraph"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></p></div><div class="bibleget-source">— New American Bible - Revised Edition (2011) · Source: <a href="/index.php?title=TestWiki:BibleGet&amp;action=edit&amp;redlink=1" class="new" title="TestWiki:BibleGet (page does not exist)">BibleGet</a></div></div>
+<div class="bibleget-quote"><div class="results bibleQuote"><p class="book bookChapter">John&#160;3</p><p class="verses versesParagraph"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></p></div><div class="bibleget-source">— New American Bible - Revised Edition (2011) · Source: <a href="/wiki/Special:BibleGet" title="Special:BibleGet">BibleGet</a></div></div>
 !! end
 
 !! test
@@ -65,7 +65,7 @@ See {{#biblequote:Jn 3,16|true|NABRE}} here.
 !! wikitext
 {{#biblequote:Jn 3,16|false}}
 !! html/php
-<div class="bibleget-quote"><div class="results bibleQuote"><p class="book bookChapter">John&#160;3</p><p class="verses versesParagraph"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></p></div><div class="bibleget-source">— New American Bible - Revised Edition (2011) · Source: <a href="/index.php?title=TestWiki:BibleGet&amp;action=edit&amp;redlink=1" class="new" title="TestWiki:BibleGet (page does not exist)">BibleGet</a></div></div>
+<div class="bibleget-quote"><div class="results bibleQuote"><p class="book bookChapter">John&#160;3</p><p class="verses versesParagraph"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></p></div><div class="bibleget-source">— New American Bible - Revised Edition (2011) · Source: <a href="/wiki/Special:BibleGet" title="Special:BibleGet">BibleGet</a></div></div>
 !! end
 
 !! test
@@ -73,7 +73,7 @@ See {{#biblequote:Jn 3,16|true|NABRE}} here.
 !! wikitext
 {{#biblequote:Jn 3,16}}
 !! html/php
-<div class="bibleget-quote"><div class="results bibleQuote"><p class="book bookChapter">John&#160;3</p><p class="verses versesParagraph"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></p></div><div class="bibleget-source">— New American Bible - Revised Edition (2011) · Source: <a href="/index.php?title=TestWiki:BibleGet&amp;action=edit&amp;redlink=1" class="new" title="TestWiki:BibleGet (page does not exist)">BibleGet</a></div></div>
+<div class="bibleget-quote"><div class="results bibleQuote"><p class="book bookChapter">John&#160;3</p><p class="verses versesParagraph"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></p></div><div class="bibleget-source">— New American Bible - Revised Edition (2011) · Source: <a href="/wiki/Special:BibleGet" title="Special:BibleGet">BibleGet</a></div></div>
 !! end
 
 !! test
@@ -126,7 +126,7 @@ biblequote tag: with ref, the body is the text readers see (inline)
 !! wikitext
 See <biblequote ref="Jn 3,16" inline="true">Gv 3,16</biblequote> here.
 !! html/php
-<p>See <span class="bibleget-inline"><span class="bibleget-ref" tabindex="0">Gv 3,16</span><span class="bibleget-popup"><span class="results bibleQuote bibleget-block"><span class="book bookChapter bibleget-block">John&#160;3</span><span class="verses versesParagraph bibleget-block"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></span></span><span class="bibleget-source bibleget-block">— New American Bible - Revised Edition (2011) · Source: <a href="/index.php?title=TestWiki:BibleGet&amp;action=edit&amp;redlink=1" class="new" title="TestWiki:BibleGet (page does not exist)">BibleGet</a></span></span></span> here.
+<p>See <span class="bibleget-inline"><span class="bibleget-ref" tabindex="0">Gv 3,16</span><span class="bibleget-popup"><span class="results bibleQuote bibleget-block"><span class="book bookChapter bibleget-block">John&#160;3</span><span class="verses versesParagraph bibleget-block"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></span></span><span class="bibleget-source bibleget-block">— New American Bible - Revised Edition (2011) · Source: <a href="/wiki/Special:BibleGet" title="Special:BibleGet">BibleGet</a></span></span></span> here.
 </p>
 !! end
 

@@ -27,14 +27,15 @@ All notable changes to this extension are documented here. The format follows
 - Tracking categories for failed quotes and for quotes cut to the verse limit.
 - Service notices from BibleGet for users with the new `bibleget-manage` right (sysops by default): Echo
   notifications, or a dismissible banner without Echo. Stored in the new `bibleget_notice` table.
-- `Special:BibleGet`, a status page for managers.
+- `Special:BibleGet`: for every reader, where the quotes come from (BibleGet, the copyright agreements, the
+  editions quoted); for managers, also the status.
 - Popup script and styles for inline quotes, shipped with the extension.
 - Translations into Italian, Spanish, French, German and Portuguese.
 - A Docker test wiki in `dev/`, PHPUnit tests and parser tests.
 - `{{#biblequote:}}` accepts `inline` and `block` as the display argument.
 - A source line at the end of every quote: the edition's full name and year (from BibleGet's answer), and a
-  link to a page on the wiki about where the quotes come from (`MediaWiki:Bibleget-source-page`,
-  `Project:BibleGet` by default). It replaces the edition's abbreviation that 1.0 showed above the quote.
+  link to `Special:BibleGet` (or the page in `MediaWiki:Bibleget-source-page`). It replaces the edition's
+  abbreviation that 1.0 showed above the quote.
 - With `ref`, the tag's body is the text readers see (the inline reference and the fallback), so a template
   can send BibleGet one form of a reference and show readers another.
 

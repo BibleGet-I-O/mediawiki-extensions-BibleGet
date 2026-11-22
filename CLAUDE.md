@@ -32,7 +32,7 @@ Namespace `MediaWiki\Extension\BibleGet\`, in `src/`. Services are wired in `src
 - `BibleGetClient` - HTTP calls (`quote`, `register`) returning `ApiResult`.
 - `AnswerParser` - turns the API's HTML into a `QuoteAnswer`: allow-list sanitiser, reads errors/notices, cuts to `BibleGetMaxVersesPerQuote`.
 - `ServiceNotices`, `NoticeStore`, `Notifications/` - service notices (body and `Deprecation`/`Sunset` headers), their storage, Echo event and manager lookup (`bibleget-manage` right).
-- `Special/SpecialBibleGet` - status page for managers. `SchemaHooks` - creates the tables via `update.php`.
+- `Special/SpecialBibleGet` - where the quotes come from, for every reader (the source line links here); the status, for managers. `SchemaHooks` - creates the tables via `update.php`.
 
 ### Request flow
 

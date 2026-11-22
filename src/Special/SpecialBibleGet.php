@@ -5,6 +5,7 @@ namespace MediaWiki\Extension\BibleGet\Special;
 use MediaWiki\Config\Config;
 use MediaWiki\Extension\BibleGet\CredentialProvider;
 use MediaWiki\Extension\BibleGet\NoticeStore;
+use MediaWiki\Extension\BibleGet\QuoteFetcher;
 use MediaWiki\Extension\BibleGet\ServiceNotices;
 use MediaWiki\Html\Html;
 use MediaWiki\SpecialPage\SpecialPage;
@@ -12,8 +13,10 @@ use Wikimedia\ObjectCache\BagOStuff;
 use Wikimedia\Rdbms\DBError;
 
 /**
- * Status page for the wiki's BibleGet managers: how the wiki authenticates, the limits, the
- * last API failure and the service notices. It never shows the project key or the token.
+ * Where the wiki's Bible quotes come from, for every reader: each quote's source line links here
+ * by default (bibleget-source-page). BibleGet managers also see the status: how the wiki
+ * authenticates, the limits, the last API failure and the service notices. It never shows the
+ * project key or the token.
  */
 class SpecialBibleGet extends SpecialPage {
 
@@ -21,17 +24,21 @@ class SpecialBibleGet extends SpecialPage {
 		private readonly CredentialProvider $credentials,
 		private readonly NoticeStore $notices,
 		private readonly BagOStuff $stash,
-		private readonly Config $config
+		private readonly Config $config,
+		private readonly QuoteFetcher $fetcher
 	) {
-		parent::__construct( 'BibleGet', 'bibleget-manage' );
+		parent::__construct( 'BibleGet' );
 	}
 
 	/** @inheritDoc */
 	public function execute( $subPage ) {
 		$this->setHeaders();
-		$this->checkPermissions();
 		$this->outputHeader();
 		$out = $this->getOutput();
+		$out->addHTML( $this->sourceSection() );
+		if ( !$this->getAuthority()->isAllowed( 'bibleget-manage' ) ) {
+			return;
+		}
 		$out->addHTML( Html::element( 'p', [], $this->msg( 'bibleget-special-intro' )->text() ) );
 
 		$missingTables = false;
@@ -47,6 +54,37 @@ class SpecialBibleGet extends SpecialPage {
 	/** @inheritDoc */
 	protected function getGroupName() {
 		return 'other';
+	}
+
+	/**
+	 * Where the quotes come from (BibleGet, its foundation, the copyright agreements), and the
+	 * editions this wiki has quoted with their copyright holders, as BibleGet named them.
+	 */
+	private function sourceSection(): string {
+		$copyrightUrl = $this->msg( 'bibleget-copyright-url' )->inContentLanguage()->text();
+		$html = Html::element( 'h2', [], $this->msg( 'bibleget-special-source-heading' )->text() )
+			. $this->msg( 'bibleget-special-source-intro' )->parseAsBlock()
+			. $this->msg( 'bibleget-special-source-copyright' )->params( $copyrightUrl )->parseAsBlock()
+			. Html::element( 'h3', [], $this->msg( 'bibleget-special-editions-heading' )->text() );
+		$editions = $this->fetcher->knownVersions();
+		if ( $editions === [] ) {
+			return $html . Html::element( 'p', [], $this->msg( 'bibleget-special-editions-none' )->text() );
+		}
+		$head = '';
+		foreach ( [ 'edition', 'abbr', 'year', 'holder' ] as $column ) {
+			// Messages: bibleget-special-editions-edition, -abbr, -year, -holder
+			$head .= Html::element( 'th', [], $this->msg( 'bibleget-special-editions-' . $column )->text() );
+		}
+		$rows = Html::rawElement( 'tr', [], $head );
+		foreach ( $editions as $sigla => $info ) {
+			$rows .= Html::rawElement( 'tr', [],
+				Html::element( 'td', [], $info['name'] )
+				. Html::element( 'td', [], (string)$sigla )
+				. Html::element( 'td', [], $info['year'] )
+				. Html::element( 'td', [], $info['holder'] )
+			);
+		}
+		return $html . Html::rawElement( 'table', [ 'class' => 'wikitable' ], $rows );
 	}
 
 	private function modeSection( bool &$missingTables ): string {

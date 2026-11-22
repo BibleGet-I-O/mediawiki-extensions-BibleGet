@@ -71,7 +71,14 @@ class QuoteRendererTest extends MediaWikiIntegrationTestCase {
 	}
 
 	private static function sourcePage(): Title {
-		return Title::makeTitle( NS_PROJECT, 'BibleGet' );
+		return Title::makeTitle( NS_SPECIAL, 'BibleGet' );
+	}
+
+	private function setSourcePage( string $page ): void {
+		$this->overrideConfigValue( 'UseDatabaseMessages', true );
+		$this->getServiceContainer()->getMessageCache()->enable();
+		$this->editPage( 'MediaWiki:Bibleget-source-page', $page );
+		$this->setService( 'BibleGet.QuoteFetcher', $this->fetcher );
 	}
 
 	public function testSourceLineUnderBlockQuote() {
@@ -85,7 +92,16 @@ class QuoteRendererTest extends MediaWikiIntegrationTestCase {
 				. '[^"]*"[^>]*>BibleGet</a></div></div>!u',
 			$html
 		);
-		// The link is a real link of the page (WhatLinksHere, red until the page exists).
+		// The extension's own page: always there, and not a page link (nothing to re-render).
+		$this->assertSame( [], $out->getLinks() );
+	}
+
+	public function testSourcePageCanBeAWikiPage() {
+		$this->setSourcePage( 'Project:BibleGet' );
+		$out = $this->parse( '<biblequote>Jn 3,16</biblequote>' );
+		$project = Title::makeTitle( NS_PROJECT, 'BibleGet' );
+		$this->assertStringContainsString( 'title="' . $project->getPrefixedText(), $out->getRawText() );
+		// A wiki page is a page link, so WhatLinksHere lists the pages quoting the Bible.
 		$this->assertArrayHasKey( 'BibleGet', $out->getLinks()[NS_PROJECT] ?? [] );
 	}
 
@@ -120,10 +136,7 @@ class QuoteRendererTest extends MediaWikiIntegrationTestCase {
 	}
 
 	public function testSourcePageCanBeTurnedOff() {
-		$this->overrideConfigValue( 'UseDatabaseMessages', true );
-		$this->getServiceContainer()->getMessageCache()->enable();
-		$this->editPage( 'MediaWiki:Bibleget-source-page', '-' );
-		$this->setService( 'BibleGet.QuoteFetcher', $this->fetcher );
+		$this->setSourcePage( '-' );
 		$out = $this->parse( '<biblequote>Jn 3,16</biblequote>' );
 		$this->assertStringContainsString( "\u{00B7} Source: BibleGet</div>", $out->getRawText() );
 		$this->assertSame( [], $out->getLinks() );

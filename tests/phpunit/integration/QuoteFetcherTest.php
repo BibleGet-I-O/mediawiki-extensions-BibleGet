@@ -189,6 +189,17 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		$this->assertNull( $other->versionInfo( 'NABRE' ) );
 	}
 
+	public function testKnownVersionsListsEveryEditionQuoted() {
+		$this->assertSame( [], $this->fetcher()->knownVersions() );
+		$this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		$this->quoteAnswer = static fn () => new ApiResult( 200, self::fixture( 'full-drb-mt5.html' ) );
+		$this->fetcher()->fetch( 'DRB', 'Mt 5', $this->user() );
+		$this->fetcher()->fetch( 'NABRE', 'Mt 5', $this->user() );
+		$known = $this->fetcher()->knownVersions();
+		$this->assertSame( [ 'DRB', 'NABRE' ], array_keys( $known ) );
+		$this->assertSame( 'New American Bible - Revised Edition', $known['NABRE']['name'] );
+	}
+
 	public function testCacheHitNoRequest() {
 		$fetcher = $this->fetcher();
 		$first = $fetcher->fetch( 'NABRE', 'Jn 3,16', $this->user() );

@@ -50,12 +50,12 @@ citation:
 
 - **Edition:** the full name and year come from BibleGet's answer. Until BibleGet has given them for an
   edition (for a quote cached by an older release), its abbreviation (`NABRE`) stands in.
-- **The link:** "BibleGet" links to a page on the wiki itself, `Project:BibleGet` by default, not to an
-  outside site. Create that page to say where the wiki's Bible quotes come from: the BibleGet service, its
-  website, and that the copyrighted editions are used under BibleGet's agreements with their copyright
-  holders. Until it exists the link is red.
-- **Changing it:** the page is the message `MediaWiki:Bibleget-source-page`; set it to `-` for no link. The
-  line itself is `MediaWiki:Bibleget-source`.
+- **The link:** "BibleGet" links to `Special:BibleGet` on the wiki itself, not to an outside site. That
+  page, which every reader can open, says where the quotes come from (see below). Nothing has to be set up.
+- **Changing it:** a wiki with its own page on the subject can link there instead, through the message
+  `MediaWiki:Bibleget-source-page` (for example `Project:BibleGet`); `-` means no link. A wiki page is
+  recorded as a link of every page with a quote, so creating or moving it re-renders those pages; the
+  default special page is not. The line itself is `MediaWiki:Bibleget-source`.
 
 ## Settings
 
@@ -144,9 +144,15 @@ on pages they view. Dismissals are kept in the `bibleget-dismissed` user option.
 
 ## Special:BibleGet
 
-A status page for managers (`bibleget-manage`). It shows whether the wiki uses a project key or is
-registered, the verse and quote limits, the rate limits, the last failure, and the service notices
-received. It never shows the key or the token.
+Every quote's source line links here. For every reader it says where the wiki's Bible quotes come from:
+BibleGet, a project of the Catholic Digital Commons Foundation, and that the copyrighted editions are
+provided under agreements between BibleGet and their copyright holders, with a link to the copyright
+notices on the BibleGet website (`MediaWiki:Bibleget-copyright-url`). It lists the editions the wiki has
+quoted, with their year and copyright holder, as BibleGet gave them.
+
+Managers (`bibleget-manage`) also see the status: whether the wiki uses a project key or is registered, the
+verse and quote limits, the rate limits, the last failure, and the service notices received. It never shows
+the key or the token.
 
 ## Upgrading from 1.0
 

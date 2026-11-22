@@ -77,4 +77,10 @@ class FakeQuoteFetcher extends QuoteFetcher {
 	public function versionInfo( string $sigla ): ?array {
 		return $this->versionInfo[$sigla] ?? null;
 	}
+
+	public function knownVersions(): array {
+		$known = $this->versionInfo;
+		ksort( $known );
+		return $known;
+	}
 }

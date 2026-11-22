@@ -74,6 +74,47 @@ class QuoteFetcher {
 			? $info : null;
 	}
 
+	/**
+	 * Every edition the API has named in an answer (see versionInfo()), by sigla, in sigla order.
+	 *
+	 * @return array[]
+	 */
+	public function knownVersions(): array {
+		$index = $this->cache->get( $this->makeVersionIndexKey() );
+		$known = [];
+		foreach ( is_array( $index ) ? $index : [] as $sigla ) {
+			$info = is_string( $sigla ) ? $this->versionInfo( $sigla ) : null;
+			if ( $info !== null ) {
+				$known[$sigla] = $info;
+			}
+		}
+		ksort( $known );
+		return $known;
+	}
+
+	/**
+	 * @param array[] $versions By sigla, as QuoteAnswer::$versions
+	 */
+	private function keepVersions( array $versions ): void {
+		if ( $versions === [] ) {
+			return;
+		}
+		foreach ( $versions as $sigla => $info ) {
+			$this->cache->set( $this->makeVersionKey( (string)$sigla ), $info, $this->cacheExpiry );
+		}
+		$indexKey = $this->makeVersionIndexKey();
+		$index = $this->cache->get( $indexKey );
+		$index = is_array( $index ) ? $index : [];
+		$all = array_values( array_unique( array_merge( $index, array_map( 'strval', array_keys( $versions ) ) ) ) );
+		if ( $all !== $index ) {
+			$this->cache->set( $indexKey, $all, $this->cacheExpiry );
+		}
+	}
+
+	private function makeVersionIndexKey(): string {
+		return $this->cache->makeGlobalKey( 'bibleget-versions', md5( $this->apiBase ) );
+	}
+
 	private function makeVersionKey( string $sigla ): string {
 		return $this->cache->makeGlobalKey( 'bibleget-version', md5( $this->apiBase ), $sigla );
 	}
@@ -125,9 +166,7 @@ class QuoteFetcher {
 		}
 		if ( $result->answer ) {
 			$this->cache->set( $key, [ 'answer' => $result->answer->toArray() ], $ttl );
-			foreach ( $result->answer->versions as $sigla => $info ) {
-				$this->cache->set( $this->makeVersionKey( (string)$sigla ), $info, $this->cacheExpiry );
-			}
+			$this->keepVersions( $result->answer->versions );
 		} else {
 			$this->cache->set( $failureKey, [ 'failure' => $result->failureKey ], $ttl );
 		}
