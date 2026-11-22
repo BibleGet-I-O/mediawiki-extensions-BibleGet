@@ -42,6 +42,10 @@ class FakeQuoteFetcher extends QuoteFetcher {
 
 	public function fetch( string $version, string $reference, User $user ): QuoteResult {
 		$this->calls[] = [ $version, $reference ];
+		if ( $version === 'LIMITED' ) {
+			// The wiki's own rate limit refused this user's fetch.
+			return new QuoteResult( null, 'bibleget-error-ratelimit', false, true );
+		}
 		if ( $version === 'ZZZZ' ) {
 			return new QuoteResult( null, 'bibleget-error-version', false );
 		}

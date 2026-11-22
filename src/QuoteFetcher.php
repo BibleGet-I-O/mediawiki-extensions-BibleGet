@@ -91,7 +91,7 @@ class QuoteFetcher {
 		// Not for maintenance scripts: a job runner's reparses run as one user for hours.
 		if ( $this->limitFetches && $user->pingLimiter( 'bibleget-fetch' ) ) {
 			// The user's limit, not the quote's: not cached, and not a BibleGet failure to record.
-			return new QuoteResult( null, 'bibleget-error-ratelimit', false );
+			return new QuoteResult( null, 'bibleget-error-ratelimit', false, true );
 		}
 
 		[ $result, $ttl ] = $this->fetchFresh( $version, $reference );
@@ -119,6 +119,8 @@ class QuoteFetcher {
 		}
 		$result = $this->client->quote( $version, $reference, $credential );
 		if ( $result->status === 401 ) {
+			// A refused credential may come with a Sunset or Deprecation notice: managers must still see it.
+			$this->notifyNotices( [], $result->headers );
 			$this->credentials->invalidate( $credential );
 			$retry = $this->credentials->get();
 			if ( $retry === null ) {
@@ -131,6 +133,7 @@ class QuoteFetcher {
 			}
 			$result = $this->client->quote( $version, $reference, $retry );
 			if ( $result->status === 401 ) {
+				$this->notifyNotices( [], $result->headers );
 				$this->credentials->invalidate( $retry );
 				return $this->fresh( 'bibleget-error-registration' );
 			}

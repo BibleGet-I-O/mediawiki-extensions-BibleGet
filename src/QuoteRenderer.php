@@ -65,7 +65,9 @@ class QuoteRenderer {
 
 		$result = $this->fetch( $parser, $output, $version, $reference );
 		if ( $result->answer === null ) {
-			return $this->renderFailure( $parser, $display, $result->failureKey ?? 'bibleget-error-status' );
+			return $this->renderFailure(
+				$parser, $display, $result->failureKey ?? 'bibleget-error-status', $result->userLimited
+			);
 		}
 
 		$answer = $result->answer;
@@ -114,9 +116,13 @@ class QuoteRenderer {
 		return $result;
 	}
 
-	private function renderFailure( Parser $parser, string $display, string $failureKey ): string {
+	private function renderFailure(
+		Parser $parser, string $display, string $failureKey, bool $userLimited = false
+	): string {
 		$parser->addTrackingCategory( 'bibleget-tracking-category' );
-		$parser->getOutput()->updateCacheExpiry( self::FAILURE_EXPIRY );
+		// One user over the wiki's rate limit must not leave the fallback in the shared parser cache
+		// for other readers: that page output is not cached at all.
+		$parser->getOutput()->updateCacheExpiry( $userLimited ? 0 : self::FAILURE_EXPIRY );
 		$reason = $parser->msg( $failureKey )->text();
 		return Html::element( 'span', [ 'class' => 'bibleget-failed' ], $display )
 			. Html::element( 'sup', [ 'class' => 'bibleget-failed-marker', 'title' => $reason ], '[!]' );

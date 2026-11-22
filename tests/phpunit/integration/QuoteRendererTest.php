@@ -160,6 +160,13 @@ class QuoteRendererTest extends MediaWikiIntegrationTestCase {
 		$this->assertSame( [ [ 'ZZZZ', 'Jn 3,16' ] ], $this->fetcher->calls );
 	}
 
+	public function testUserRateLimitIsNotParserCached() {
+		$out = $this->parse( '<biblequote version="LIMITED">Jn 3,16</biblequote>' );
+		$this->assertStringContainsString( '<span class="bibleget-failed">Jn 3,16</span>', $out->getRawText() );
+		// One reader over the wiki's limit must not leave the fallback for everyone else.
+		$this->assertSame( 0, $out->getCacheExpiry() );
+	}
+
 	public function testSuccessKeepsCacheExpiry() {
 		$this->assertGreaterThan( 3600, $this->parse( '<biblequote>Jn 3,16</biblequote>' )->getCacheExpiry() );
 	}

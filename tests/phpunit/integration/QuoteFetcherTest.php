@@ -224,6 +224,14 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		$this->assertNull( $this->lastFailure(), 'the wiki\'s own limit is not a BibleGet failure' );
 	}
 
+	public function testOnlyTheLocalRateLimitIsUserLimited() {
+		$this->assertTrue( $this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user( true ) )->userLimited );
+		$this->quoteAnswer = static fn () => new ApiResult( 429, '{}', 60 );
+		$api = $this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		$this->assertSame( 'bibleget-error-ratelimit', $api->failureKey );
+		$this->assertFalse( $api->userLimited, 'an HTTP 429 from BibleGet holds for every reader' );
+	}
+
 	public function testTimeoutIsFailure() {
 		$this->quoteAnswer = static fn () => new ApiResult( 0 );
 		$result = $this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );
@@ -440,6 +448,14 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		$this->quoteAnswer = static fn () => new ApiResult( 429, '{}', 60, self::SUNSET_HEADERS );
 		$result = $this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );
 		$this->assertSame( 'bibleget-error-ratelimit', $result->failureKey );
+		$this->assertSame( [ 'sunset:2028-01-01' ], array_column( $this->notified[0] ?? [], 'id' ) );
+	}
+
+	public function testRefusedProjectKeyHeadersStillFeedNotices() {
+		$this->quoteAnswer = static fn () =>
+			new ApiResult( 401, '{"title":"Unauthorized"}', null, self::SUNSET_HEADERS );
+		$result = $this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		$this->assertSame( 'bibleget-error-status', $result->failureKey );
 		$this->assertSame( [ 'sunset:2028-01-01' ], array_column( $this->notified[0] ?? [], 'id' ) );
 	}
 
