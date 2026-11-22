@@ -25,17 +25,19 @@ Requires MediaWiki 1.43 or later and PHP 8.1 or later. The cURL extension is not
 ## Usage
 
 ```
-<biblequote ref="Jn 3,16" version="NABRE" inline="true">fallback text</biblequote>
+<biblequote ref="John 3,16" version="NABRE" inline="true">Jn 3,16</biblequote>
 <biblequote>Jn 3,16</biblequote>
 {{#biblequote:Jn 3,16|inline|NABRE}}
 ```
 
-- The tag takes the reference from `ref`, or from its body when there is no `ref`. `version` is optional
-  and falls back to `$wgBibleGetDefaultBibleVersion`. `inline="true"` shows the reference as text with the
+- The tag takes the reference from `ref`, or from its body when there is no `ref`. With `ref`, a
+  non-empty body is the text readers see, as the inline reference and in the fallback (for example the
+  wiki's own abbreviation, while `ref` holds a form BibleGet knows); it is literal text, like the
+  reference. `version` is optional and falls back to `$wgBibleGetDefaultBibleVersion`. `inline="true"` shows the reference as text with the
   quote in a popup; otherwise the quote is a block.
 - The parser function takes `reference|display|version`. `display` is `inline` or `block`; `true` and
   `false`, as 1.0 accepted, still work.
-- A quote that cannot be fetched shows the reference as plain text followed by a `[!]` marker whose
+- A quote that cannot be fetched shows the reference (or the body given with `ref`) as plain text followed by a `[!]` marker whose
   tooltip gives the reason, and the page is put in a tracking category.
 - A tag or function with no reference shows an error ("No Bible reference was given").
 

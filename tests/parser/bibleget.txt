@@ -120,3 +120,30 @@ biblequote tag: the reference is literal text
 <p><span class="bibleget-failed">Mt 5,3 &lt;b&gt;"x"&lt;/b&gt; {{tl}} [[A]]</span><sup class="bibleget-failed-marker" title="The BibleGet service could not be reached.">[!]</sup>
 </p>
 !! end
+
+!! test
+biblequote tag: with ref, the body is the text readers see (inline)
+!! wikitext
+See <biblequote ref="Jn 3,16" inline="true">Gv 3,16</biblequote> here.
+!! html/php
+<p>See <span class="bibleget-inline"><span class="bibleget-ref" tabindex="0">Gv 3,16</span><span class="bibleget-popup"><span class="results bibleQuote bibleget-block"><span class="version bibleVersion bibleget-block">NABRE</span><span class="book bookChapter bibleget-block">John&#160;3</span><span class="verses versesParagraph bibleget-block"><span class="sup verseNum">16</span><span class="text verseText">For God so loved the world that he gave his only Son, so that everyone who believes in him might not perish but might have eternal life. </span></span></span></span></span> here.
+</p>
+!! end
+
+!! test
+biblequote tag: with ref, the body is the fallback text
+!! wikitext
+<biblequote ref="Jn 3,16" version="ZZZZ">Gv 3,16</biblequote>
+!! html/php
+<p><span class="bibleget-failed">Gv 3,16</span><sup class="bibleget-failed-marker" title="BibleGet does not know this Bible version.">[!]</sup>
+</p>
+!! end
+
+!! test
+biblequote tag: with ref, the body is literal text
+!! wikitext
+<biblequote ref="Jn 3,16" version="ZZZZ">Gv <b>"3"</b> {{tl}}</biblequote>
+!! html/php
+<p><span class="bibleget-failed">Gv &lt;b&gt;"3"&lt;/b&gt; {{tl}}</span><sup class="bibleget-failed-marker" title="BibleGet does not know this Bible version.">[!]</sup>
+</p>
+!! end

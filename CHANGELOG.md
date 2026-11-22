@@ -28,6 +28,8 @@ All notable changes to this extension are documented here. The format follows
 - Translations into Italian, Spanish, French, German and Portuguese.
 - A Docker test wiki in `dev/`, PHPUnit tests and parser tests.
 - `{{#biblequote:}}` accepts `inline` and `block` as the display argument.
+- With `ref`, the tag's body is the text readers see (the inline reference and the fallback), so a template
+  can send BibleGet one form of a reference and show readers another.
 
 ### Changed
 

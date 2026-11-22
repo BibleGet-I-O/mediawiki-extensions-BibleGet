@@ -33,20 +33,23 @@ class Hooks implements ParserFirstCallInitHook, BeforePageDisplayHook, GetPrefer
 	}
 
 	/**
-	 * <biblequote ref="…" version="…" inline="…">reference</biblequote>
+	 * <biblequote ref="…" version="…" inline="…">text shown</biblequote>
 	 *
-	 * @param string|null $input The body: the reference when there is no ref attribute
+	 * @param string|null $input The body: the reference when there is no ref attribute, else the
+	 *  text readers see (the inline reference and the fallback), e.g. the wiki's own abbreviation
 	 * @param array $args
 	 * @param Parser $parser
 	 * @param PPFrame $frame
 	 * @return string HTML
 	 */
 	public static function renderTag( ?string $input, array $args, Parser $parser, PPFrame $frame ): string {
+		$hasRef = isset( $args['ref'] );
 		return self::renderer()->render(
 			$parser,
-			(string)( $args['ref'] ?? $input ?? '' ),
+			(string)( $hasRef ? $args['ref'] : ( $input ?? '' ) ),
 			$args['version'] ?? null,
-			self::isInline( $args['inline'] ?? '' )
+			self::isInline( $args['inline'] ?? '' ),
+			$hasRef ? $input : null
 		);
 	}
 

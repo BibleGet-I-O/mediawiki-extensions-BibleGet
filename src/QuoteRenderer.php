@@ -12,7 +12,7 @@ use WeakMap;
 
 /**
  * Turns a reference into page HTML: the quote as a block or an inline popup, or the
- * fallback (the escaped reference and a [!] marker) when the quote cannot be had.
+ * fallback (the escaped display text, by default the reference, and a [!] marker) when the quote cannot be had.
  */
 class QuoteRenderer {
 
@@ -39,13 +39,21 @@ class QuoteRenderer {
 	 * @param string $reference As the editor wrote it; never parsed
 	 * @param string|null $version Null or empty for the default version
 	 * @param bool $inline
+	 * @param string|null $display Text readers see (inline reference, fallback); null or empty for the reference
 	 * @return string HTML
 	 */
-	public function render( Parser $parser, string $reference, ?string $version, bool $inline ): string {
+	public function render(
+		Parser $parser, string $reference, ?string $version, bool $inline, ?string $display = null
+	): string {
 		$reference = trim( $parser->killMarkers( $reference ) );
 		if ( $reference === '' ) {
 			return Html::element( 'strong', [ 'class' => 'error' ],
 				$parser->msg( 'bibleget-error-noref' )->text() );
+		}
+		// The text readers see: the given display text, else the reference itself.
+		$display = trim( $parser->killMarkers( (string)$display ) );
+		if ( $display === '' ) {
+			$display = $reference;
 		}
 		$version = trim( (string)$version );
 		if ( $version === '' ) {
@@ -57,7 +65,7 @@ class QuoteRenderer {
 
 		$result = $this->fetch( $parser, $output, $version, $reference );
 		if ( $result->answer === null ) {
-			return $this->renderFailure( $parser, $reference, $result->failureKey ?? 'bibleget-error-status' );
+			return $this->renderFailure( $parser, $display, $result->failureKey ?? 'bibleget-error-status' );
 		}
 
 		$answer = $result->answer;
@@ -76,7 +84,7 @@ class QuoteRenderer {
 		// The popup script (and its styles) only serves inline quotes.
 		$output->addModules( [ 'ext.bibleGet' ] );
 		return Html::rawElement( 'span', [ 'class' => 'bibleget-inline' ],
-			Html::element( 'span', [ 'class' => 'bibleget-ref', 'tabindex' => '0' ], $reference )
+			Html::element( 'span', [ 'class' => 'bibleget-ref', 'tabindex' => '0' ], $display )
 			. Html::rawElement( 'span', [ 'class' => 'bibleget-popup' ], self::toPhrasing( $html ) )
 		);
 	}
@@ -106,11 +114,11 @@ class QuoteRenderer {
 		return $result;
 	}
 
-	private function renderFailure( Parser $parser, string $reference, string $failureKey ): string {
+	private function renderFailure( Parser $parser, string $display, string $failureKey ): string {
 		$parser->addTrackingCategory( 'bibleget-tracking-category' );
 		$parser->getOutput()->updateCacheExpiry( self::FAILURE_EXPIRY );
 		$reason = $parser->msg( $failureKey )->text();
-		return Html::element( 'span', [ 'class' => 'bibleget-failed' ], $reference )
+		return Html::element( 'span', [ 'class' => 'bibleget-failed' ], $display )
 			. Html::element( 'sup', [ 'class' => 'bibleget-failed-marker', 'title' => $reason ], '[!]' );
 	}
 
