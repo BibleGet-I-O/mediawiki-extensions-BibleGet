@@ -27,6 +27,7 @@ class BibleGetClientTest extends MediaWikiUnitTestCase {
 		array $headers = [],
 		?\Throwable $throws = null,
 		bool $fails = false,
+		bool $badStatus = false,
 		?AbstractLogger $logger = null
 	): BibleGetClient {
 		$req = $this->createMock( MWHttpRequest::class );
@@ -36,7 +37,7 @@ class BibleGetClientTest extends MediaWikiUnitTestCase {
 		if ( $throws ) {
 			$req->method( 'execute' )->willThrowException( $throws );
 		} else {
-			$req->method( 'execute' )->willReturn( $fails ? Status::newFatal( 'http-timed-out' ) : Status::newGood() );
+			$req->method( 'execute' )->willReturn( ( $fails || $badStatus ) ? Status::newFatal( 'http-bad-status' ) : Status::newGood() );
 		}
 		$req->method( 'getStatus' )->willReturn( $fails ? 0 : $status );
 		$req->method( 'getContent' )->willReturn( $fails ? '' : $body );
@@ -134,5 +135,22 @@ class BibleGetClientTest extends MediaWikiUnitTestCase {
 		$this->assertStringNotContainsString( self::SECRET, serialize( $r ) );
 		$this->assertNotEmpty( $logger->records );
 		$this->assertStringNotContainsString( self::SECRET, serialize( $logger->records ) );
+	}
+
+	public function testErrorStatusesKeepCodeBodyAndRetryAfter() {
+		$r = $this->client( 429, 'slow', [ 'Retry-After' => '30' ], badStatus: true )
+			->quote( 'N', 'x', self::SECRET );
+		$this->assertSame( 429, $r->status );
+		$this->assertSame( 30, $r->retryAfter );
+		$this->assertSame( 'slow', $r->body );
+
+		$r = $this->client( 401, '', badStatus: true )->register( 'k', 'i', 'https://w.test' );
+		$this->assertSame( 401, $r->status );
+
+		$body = '{"type":"about:blank","status":422}';
+		$r = $this->client( 422, $body, [ 'Content-Type' => 'application/problem+json' ], badStatus: true )
+			->quote( 'XX', 'x', self::SECRET );
+		$this->assertSame( 422, $r->status );
+		$this->assertSame( $body, $r->body );
 	}
 }

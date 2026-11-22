@@ -54,9 +54,10 @@ class BibleGetClient {
 			foreach ( $extraHeaders as $name => $value ) {
 				$req->setHeader( $name, $value );
 			}
-			$status = $req->execute();
+			$req->execute();
+// execute() reports any HTTP code >= 400 as a fatal Status, so the code decides.
 			$code = $req->getStatus();
-			if ( !$status->isOK() || $code === 0 ) {
+			if ( $code === 0 ) {
 				$this->logger->warning( 'BibleGet API request to {route} got no answer', [ 'route' => $route ] );
 				return new ApiResult( 0 );
 			}
