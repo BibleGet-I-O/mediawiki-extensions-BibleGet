@@ -129,6 +129,15 @@ class QuoteRendererTest extends MediaWikiIntegrationTestCase {
 		$this->assertStringContainsString( "\u{2014} NAB &lt;b&gt;R&lt;/b&gt;E \u{00B7}", $html );
 	}
 
+	public function testNewestEditionDetailsWin() {
+		// BibleGet renamed the edition after this answer was cached: the per-edition copy, kept
+		// from the newest answer of any quote, beats the one inside the older cached answer.
+		$this->fetcher->versionInfo['NABRE'] = [
+			'name' => 'New American Bible, Revised Edition', 'year' => '2011', 'holder' => '' ];
+		$html = $this->parse( '<biblequote>Jn 3,16</biblequote>' )->getRawText();
+		$this->assertStringContainsString( "\u{2014} New American Bible, Revised Edition (2011) \u{00B7}", $html );
+	}
+
 	public function testSourceLineFallsBackToTheSigla() {
 		$this->fetcher->dropVersions = true;
 		$html = $this->parse( '<biblequote version="DRB">Mt 5,48-6,2</biblequote>' )->getRawText();

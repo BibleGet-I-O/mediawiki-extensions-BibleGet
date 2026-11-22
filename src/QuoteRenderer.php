@@ -145,8 +145,13 @@ class QuoteRenderer {
 	 * @return string HTML
 	 */
 	private function sourceLine( Parser $parser, ParserOutput $output, string $sigla, $info ): string {
-		if ( !is_array( $info ) || !is_string( $info['name'] ?? null ) || $info['name'] === '' ) {
-			$info = $this->fetcher->versionInfo( $sigla );
+		// The per-edition copy first: it comes from the newest answer of any quote, so a renamed
+		// edition shows its new name on quotes cached before the change too.
+		$newest = $this->fetcher->versionInfo( $sigla );
+		if ( $newest !== null ) {
+			$info = $newest;
+		} elseif ( !is_array( $info ) || !is_string( $info['name'] ?? null ) || $info['name'] === '' ) {
+			$info = null;
 		}
 		$edition = $sigla;
 		if ( $info !== null ) {
