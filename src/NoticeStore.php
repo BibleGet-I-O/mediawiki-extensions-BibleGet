@@ -54,6 +54,25 @@ class NoticeStore {
 	}
 
 	/**
+	 * Which of these ids are already stored, read from a replica: a read-only fast path
+	 * before record(). A lagging replica only means record() runs and finds the row.
+	 *
+	 * @param string[] $ids
+	 * @return string[]
+	 */
+	public function knownIds( array $ids ): array {
+		if ( $ids === [] ) {
+			return [];
+		}
+		return array_map( 'strval', $this->lb->getConnection( DB_REPLICA )->newSelectQueryBuilder()
+			->select( 'bn_id' )
+			->from( self::TABLE )
+			->where( [ 'bn_id' => array_values( $ids ) ] )
+			->caller( __METHOD__ )
+			->fetchFieldValues() );
+	}
+
+	/**
 	 * Every stored notice, newest first.
 	 *
 	 * @return array[] [ 'id' => string, 'message' => string, 'link' => ?string, 'firstSeen' => string (TS_MW) ]
@@ -78,7 +97,7 @@ class NoticeStore {
 	}
 
 	/**
-	 * An autocommit connection: notices are recorded while a page is parsed, often in a GET.
+	 * An autocommit connection, so the first-sight insert commits at once.
 	 */
 	private function db(): IDatabase {
 		return $this->lb->getConnection( DB_PRIMARY, [], false, ILoadBalancer::CONN_TRX_AUTOCOMMIT );

@@ -6,12 +6,15 @@ use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Extension\BibleGet\NoticeStore;
 use MediaWiki\Extension\BibleGet\Notifications\ManagerLocator;
 use MediaWiki\Extension\BibleGet\Notifications\NoticeNotifier;
+use MediaWiki\Extension\BibleGet\Tests\AnswerFixtures;
 use MediaWiki\Extension\Notifications\Formatters\EchoEventPresentationModel;
 use MediaWiki\Extension\Notifications\Model\Event;
 use MediaWiki\Registration\ExtensionRegistry;
 use MediaWiki\User\User;
 use MediaWikiIntegrationTestCase;
 use Psr\Log\NullLogger;
+use RuntimeException;
+use TestLogger;
 use Wikimedia\Timestamp\ConvertibleTimestamp;
 
 /**
@@ -34,15 +37,8 @@ class NoticeStoreTest extends MediaWikiIntegrationTestCase {
 		parent::tearDown();
 	}
 
-	public static function notice( array $over = [] ): array {
-		return $over + [
-			'id' => 'v3-retirement',
-			'message' => 'The v3 API retires next year.',
-			'link' => 'https://www.bibleget.io/news/v3',
-			'published' => '2026-11-01',
-			'deprecation' => '2027-01-01T00:00:00Z',
-			'sunset' => null,
-		];
+	private static function notice( array $over = [] ): array {
+		return AnswerFixtures::serviceNotice( $over );
 	}
 
 	private function store(): NoticeStore {
@@ -154,9 +150,9 @@ class NoticeStoreTest extends MediaWikiIntegrationTestCase {
 	public function testWithoutEchoNoEvent() {
 		$this->requireEcho();
 		$this->getTestSysop();
-		$new = $this->notifier( false )->notify( [ self::notice() ] );
-		$this->assertCount( 1, $new );
+		$this->notifier( false )->notify( [ self::notice() ] );
 		DeferredUpdates::doUpdates();
+		$this->assertSame( [ 'v3-retirement' ], array_column( $this->store()->current(), 'id' ) );
 		$this->runJobs( [ 'minJobs' => 0 ] );
 		$this->assertSame( [], $this->events() );
 	}
@@ -180,6 +176,71 @@ class NoticeStoreTest extends MediaWikiIntegrationTestCase {
 		$this->assertSame( 'v3-retirement', $extra['notice-id'] );
 		$this->assertSame( 2, $this->notificationsFor( $sysop ), 'one notification per notice for a manager' );
 		$this->assertSame( 0, $this->notificationsFor( $plain ), 'none for a non-manager' );
+	}
+
+	/**
+	 * A NoticeStore that counts its calls; record() can be made to throw.
+	 */
+	private function spyStore( bool $failRecord = false ): NoticeStore {
+		return new class( $this->getServiceContainer()->getDBLoadBalancer(), $failRecord ) extends NoticeStore {
+			public int $records = 0;
+			public int $knownChecks = 0;
+
+			public function __construct( $lb, private readonly bool $failRecord ) {
+				parent::__construct( $lb );
+			}
+
+			public function knownIds( array $ids ): array {
+				$this->knownChecks++;
+				return parent::knownIds( $ids );
+			}
+
+			public function record( array $notices ): array {
+				$this->records++;
+				if ( $this->failRecord ) {
+					throw new RuntimeException( 'no table' );
+				}
+				return parent::record( $notices );
+			}
+		};
+	}
+
+	public function testKnownNoticeMakesNoPrimaryWrite() {
+		$this->store()->record( [ self::notice() ] );
+		$spy = $this->spyStore();
+		$notifier = new NoticeNotifier( $spy, true, new NullLogger() );
+
+		$notifier->notify( [ self::notice() ] );
+		DeferredUpdates::doUpdates();
+		$this->assertSame( 1, $spy->knownChecks, 'a replica read' );
+		$this->assertSame( 0, $spy->records, 'no write (and no Echo event) for a known id' );
+
+		// An unknown one in the same list is still recorded, once
+		$notifier->notify( [ self::notice(), self::notice( [ 'id' => 'fresh-notice' ] ) ] );
+		DeferredUpdates::doUpdates();
+		$this->assertSame( 1, $spy->records );
+		$this->assertCount( 2, $this->store()->current() );
+	}
+
+	public function testRecordIsDeferred() {
+		$spy = $this->spyStore();
+		$notifier = new NoticeNotifier( $spy, false, new NullLogger() );
+		$scope = DeferredUpdates::preventOpportunisticUpdates();
+		$notifier->notify( [ self::notice() ] );
+		$this->assertSame( 0, $spy->records, 'nothing written during the parse' );
+		$this->assertSame( [], $this->store()->current() );
+		DeferredUpdates::doUpdates();
+		$this->assertSame( 1, $spy->records );
+		$this->assertSame( [ 'v3-retirement' ], array_column( $this->store()->current(), 'id' ) );
+	}
+
+	public function testDeferredFailureIsLogged() {
+		$logger = new TestLogger( true, null, true );
+		$notifier = new NoticeNotifier( $this->spyStore( true ), true, $logger );
+		$notifier->notify( [ self::notice() ] );
+		DeferredUpdates::doUpdates();
+		$this->assertSame( 'warning', $logger->getBuffer()[0][0] ?? null );
+		$this->assertSame( 'no table', $logger->getBuffer()[0][2]['error'] ?? null );
 	}
 
 	public function testPresentationModel() {

@@ -3,6 +3,7 @@
 namespace MediaWiki\Extension\BibleGet\Tests\Integration;
 
 use HashBagOStuff;
+use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Extension\BibleGet\ApiResult;
 use MediaWiki\Extension\BibleGet\BibleGetClient;
 use MediaWiki\Extension\BibleGet\CredentialProvider;
@@ -11,7 +12,7 @@ use MediaWiki\Extension\BibleGet\NoticeStore;
 use MediaWiki\Extension\BibleGet\Notifications\NoticeNotifier;
 use MediaWiki\Extension\BibleGet\QuoteFetcher;
 use MediaWiki\Extension\BibleGet\QuoteResult;
-use MediaWiki\Extension\BibleGet\Tests\Unit\AnswerParserNoticesTest;
+use MediaWiki\Extension\BibleGet\Tests\AnswerFixtures;
 use MediaWiki\Http\HttpRequestFactory;
 use MediaWiki\User\User;
 use MediaWikiIntegrationTestCase;
@@ -118,9 +119,9 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 				$this->test = $test;
 			}
 
-			public function notify( array $notices ): array {
+			public function notify( array $notices ): void {
 				$this->test->notified[] = $notices;
-				return parent::notify( $notices );
+				parent::notify( $notices );
 			}
 		};
 	}
@@ -388,7 +389,7 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 	}
 
 	public function testFreshAnswerFeedsNotices() {
-		$body = AnswerParserNoticesTest::answerWith( json_encode( [ self::bundledNotice() ] ) );
+		$body = AnswerFixtures::withServiceNotices( json_encode( [ self::bundledNotice() ] ) );
 		$this->quoteAnswer = static fn () => new ApiResult( 200, $body, null, self::SUNSET_HEADERS );
 		$fetcher = $this->fetcher();
 
@@ -403,6 +404,7 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		$this->assertSame( [ self::bundledNotice() ], $cached->answer->serviceNotices );
 		$this->assertCount( 1, $this->notified, 'a cached answer does not feed the notices' );
 
+		DeferredUpdates::doUpdates();
 		$this->assertSame(
 			[ 'v3-retirement', 'sunset:2028-01-01' ],
 			array_column( $this->getServiceContainer()->getService( 'BibleGet.NoticeStore' )->current(), 'id' )

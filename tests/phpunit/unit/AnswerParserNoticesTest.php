@@ -5,6 +5,7 @@ namespace MediaWiki\Extension\BibleGet\Tests\Unit;
 use MediaWiki\Extension\BibleGet\AnswerParser;
 use MediaWiki\Extension\BibleGet\QuoteAnswer;
 use MediaWiki\Extension\BibleGet\ServiceNotices;
+use MediaWiki\Extension\BibleGet\Tests\AnswerFixtures;
 use MediaWikiUnitTestCase;
 
 /**
@@ -17,19 +18,8 @@ class AnswerParserNoticesTest extends MediaWikiUnitTestCase {
 	/** 2027-01-01T00:00:00Z */
 	private const JAN_2027 = 1798761600;
 
-	/**
-	 * The good Jn 3:16 answer with a service_notices input holding $value (raw attribute text
-	 * before escaping).
-	 */
-	public static function answerWith( string $value ): string {
-		$html = file_get_contents( __DIR__ . '/../fixtures/answers/good-nabre-jn3-16.html' );
-		$input = '<input type="hidden" name="service_notices" value="' . htmlspecialchars( $value )
-			. '" class="BibleGetServiceNotices">';
-		return str_replace(
-			'<input type="hidden" name="notices" value="[]" class="BibleGetNotices">',
-			'<input type="hidden" name="notices" value="[]" class="BibleGetNotices">' . $input,
-			$html
-		);
+	private static function answerWith( string $value ): string {
+		return AnswerFixtures::withServiceNotices( $value );
 	}
 
 	private static function notice( array $over = [] ): array {

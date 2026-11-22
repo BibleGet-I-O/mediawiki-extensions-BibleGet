@@ -2,6 +2,7 @@
 
 namespace MediaWiki\Extension\BibleGet\Notifications;
 
+use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Extension\BibleGet\NoticeStore;
 use MediaWiki\Extension\Notifications\Model\Event;
 use Psr\Log\LoggerInterface;
@@ -36,27 +37,50 @@ class NoticeNotifier {
 	}
 
 	/**
+	 * Notices seen in a fresh answer, during the parse. Ids already stored are skipped with a
+	 * replica read; the others are recorded, and their Echo events created, in a post-send
+	 * deferred update, so a GET parse makes no primary write.
+	 *
 	 * @param array[] $notices Checked notices (see ServiceNotices)
-	 * @return array[] The ones new to this wiki
 	 */
-	public function notify( array $notices ): array {
+	public function notify( array $notices ): void {
 		$unseen = [];
 		foreach ( $notices as $notice ) {
 			if ( !isset( $this->seen[$notice['id']] ) ) {
 				$this->seen[$notice['id']] = true;
-				$unseen[] = $notice;
+				$unseen[$notice['id']] = $notice;
 			}
 		}
 		if ( $unseen === [] ) {
-			return [];
+			return;
 		}
 		try {
-			$new = $this->store->record( $unseen );
+			$known = $this->store->knownIds( array_keys( $unseen ) );
 		} catch ( Throwable $e ) {
-			// A notice must never cost the quote (e.g. update.php not run yet).
-			$this->logger->warning( 'BibleGet could not record service notices: {error}', [
-				'error' => $e->getMessage(),
-			] );
+			$this->logFailure( $e );
+			return;
+		}
+		$unknown = array_values( array_diff_key( $unseen, array_flip( $known ) ) );
+		if ( $unknown !== [] ) {
+			DeferredUpdates::addCallableUpdate( function () use ( $unknown ) {
+				$this->recordNew( $unknown );
+			} );
+		}
+	}
+
+	/**
+	 * Record the notices; INSERT IGNORE decides which are new (once, even across concurrent
+	 * requests), and each new one gets one Echo event.
+	 *
+	 * @param array[] $notices
+	 * @return array[] The ones new to this wiki
+	 */
+	public function recordNew( array $notices ): array {
+		try {
+			$new = $this->store->record( $notices );
+		} catch ( Throwable $e ) {
+			// A notice must never cost the page (e.g. update.php not run yet).
+			$this->logFailure( $e );
 			return [];
 		}
 		if ( $this->echoLoaded ) {
@@ -65,6 +89,12 @@ class NoticeNotifier {
 			}
 		}
 		return $new;
+	}
+
+	private function logFailure( Throwable $e ): void {
+		$this->logger->warning( 'BibleGet could not record service notices: {error}', [
+			'error' => $e->getMessage(),
+		] );
 	}
 
 	private function createEvent( array $notice ): void {

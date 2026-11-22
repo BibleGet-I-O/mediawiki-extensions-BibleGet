@@ -6,6 +6,7 @@ use MediaWiki\Context\RequestContext;
 use MediaWiki\Extension\BibleGet\Hooks;
 use MediaWiki\Extension\BibleGet\NoticeStore;
 use MediaWiki\Extension\BibleGet\Notifications\NoticeNotifier;
+use MediaWiki\Extension\BibleGet\Tests\AnswerFixtures;
 use MediaWiki\Title\Title;
 use MediaWiki\User\User;
 use MediaWikiIntegrationTestCase;
@@ -48,7 +49,7 @@ class NoticeBannerTest extends MediaWikiIntegrationTestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		$this->useEcho( false );
-		$this->record( NoticeStoreTest::notice() );
+		$this->record( AnswerFixtures::serviceNotice() );
 	}
 
 	public function testManagerSeesBanner() {
@@ -71,7 +72,7 @@ class NoticeBannerTest extends MediaWikiIntegrationTestCase {
 
 	public function testDismissedNoticeHidden() {
 		$sysop = $this->getTestSysop()->getUser();
-		$this->record( NoticeStoreTest::notice( [ 'id' => 'other-notice', 'message' => 'Other text' ] ) );
+		$this->record( AnswerFixtures::serviceNotice( [ 'id' => 'other-notice', 'message' => 'Other text' ] ) );
 
 		$this->dismiss( $sysop, 'v3-retirement' );
 		[ $html ] = $this->view( $sysop );
@@ -88,7 +89,7 @@ class NoticeBannerTest extends MediaWikiIntegrationTestCase {
 	}
 
 	public function testTextEscapedAndUnsafeLinkDropped() {
-		$this->record( NoticeStoreTest::notice( [
+		$this->record( AnswerFixtures::serviceNotice( [
 			'id' => 'evil-notice',
 			'message' => '<script>alert(1)</script><b>bold</b>',
 			'link' => 'javascript:alert(1)',
