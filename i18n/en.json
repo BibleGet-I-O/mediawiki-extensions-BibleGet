@@ -4,5 +4,9 @@
 			"JohnRDOrazio"
 		]
 	},
-	"bibleget-desc": "Fetch Bible quotes from the BibleGet API using a &lt;biblequote&gt; tag."
+	"bibleget-desc": "Fetch Bible quotes from the BibleGet API using a &lt;biblequote&gt; tag.",
+	"bibleget-tracking-category": "Pages with failed Bible quotes",
+	"bibleget-tracking-category-desc": "Pages where a Bible quote could not be fetched.",
+	"bibleget-toolong-category": "Pages with Bible quotes cut to the verse limit",
+	"bibleget-toolong-category-desc": "Pages where a Bible quote was cut to the maximum number of verses."
 }

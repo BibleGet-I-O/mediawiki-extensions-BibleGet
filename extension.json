@@ -3,35 +3,53 @@
 	"name": "BibleGet",
 	"type": "parserhook",
 	"author": "John R. D'Orazio",
-	"version": "1.0.0",
-	"url": "https://github.com/BibleGet-I-O/mediawiki-bibleget/",
+	"version": "2.0.0",
+	"url": "https://github.com/BibleGet-I-O/mediawiki-extensions-BibleGet/",
 	"description": "Fetch Bible quotes from the BibleGet API.",
 	"descriptionmsg": "bibleget-desc",
 	"license-name": "Apache-2.0",
 	"requires": {
-		"MediaWiki": ">= 1.31",
+		"MediaWiki": ">= 1.43.0",
 		"platform": {
-			"php": ">= 7.1",
-			"ext-curl": "*"
+			"php": ">= 8.1"
 		}
 	},
 	"ExtensionMessagesFiles": {
-		"BibleGettMagic": "BibleGet.i18n.magic.php"
+		"BibleGetMagic": "BibleGet.i18n.magic.php"
 	},
 	"AutoloadNamespaces": {
 		"MediaWiki\\Extension\\BibleGet\\": "src/"
 	},
-	"ResourceModules": {
-		"ext.BibleGet.scripts": {
-			"scripts": [],
-			"dependencies": []
-		}
-	},
+	"ServiceWiringFiles": [
+		"src/ServiceWiring.php"
+	],
 	"MessagesDirs": {
 		"BibleGet": [
 			"i18n"
 		]
 	},
+	"AvailableRights": [
+		"bibleget-manage"
+	],
+	"GroupPermissions": {
+		"sysop": {
+			"bibleget-manage": true
+		}
+	},
+	"RateLimits": {
+		"bibleget-fetch": {
+			"anon": {
+				"ip": [ 30, 60 ]
+			},
+			"ip": [ 30, 60 ],
+			"newbie": [ 30, 60 ],
+			"user": [ 120, 60 ]
+		}
+	},
+	"TrackingCategories": [
+		"bibleget-tracking-category",
+		"bibleget-toolong-category"
+	],
 	"HookHandlers": {
 		"main": {
 			"class": "MediaWiki\\Extension\\BibleGet\\Hooks"
@@ -43,9 +61,33 @@
 		}
 	},
 	"config": {
+		"BibleGetApiBase": {
+			"value": "https://query.bibleget.io/v4/",
+			"description": "Base URL of the BibleGet v4 API."
+		},
+		"BibleGetApiKey": {
+			"value": null,
+			"description": "Optional site API key sent to the BibleGet API."
+		},
+		"BibleGetClientKey": {
+			"value": "",
+			"description": "Bundled client key identifying this extension to the BibleGet API."
+		},
 		"BibleGetDefaultBibleVersion": {
-			"value": "NABRE"
+			"value": "NABRE",
+			"description": "Bible version used when a quote does not name one."
+		},
+		"BibleGetCacheExpiry": {
+			"value": 2592000,
+			"description": "Seconds a fetched quote is cached."
+		},
+		"BibleGetMaxQuotesPerPage": {
+			"value": 50,
+			"description": "Maximum number of Bible quotes rendered on one page."
+		},
+		"BibleGetMaxVersesPerQuote": {
+			"value": 30,
+			"description": "Maximum number of verses rendered for one quote."
 		}
-	},
-	"load_composer_autoloader": true
+	}
 }

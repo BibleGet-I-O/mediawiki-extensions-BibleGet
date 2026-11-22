@@ -4,5 +4,9 @@
 			"JohnRDOrazio"
 		]
 	},
-	"bibleget-desc": "{{desc|name=BibleGet|url=https://github.com/BibleGet-I-O/mediawiki-extensions-BibleGet}}"
+	"bibleget-desc": "{{desc|name=BibleGet|url=https://github.com/BibleGet-I-O/mediawiki-extensions-BibleGet}}",
+	"bibleget-tracking-category": "Name of the tracking category for pages with failed Bible quotes.",
+	"bibleget-tracking-category-desc": "Description of the tracking category [[Special:TrackingCategories]] for pages with failed Bible quotes.",
+	"bibleget-toolong-category": "Name of the tracking category for pages with Bible quotes cut to the verse limit.",
+	"bibleget-toolong-category-desc": "Description of the tracking category [[Special:TrackingCategories]] for pages with Bible quotes cut to the verse limit."
 }

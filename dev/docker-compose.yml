@@ -1,0 +1,11 @@
+# Local MediaWiki 1.43 for developing and testing BibleGet (see README.md).
+name: bibleget-dev
+services:
+  mediawiki:
+    image: mediawiki:1.43
+    ports:
+      - "127.0.0.1:8043:80"
+    volumes:
+      - ..:/var/www/html/extensions/BibleGet
+      - ./data:/var/www/data
+      - ./LocalSettings.append.php:/var/www/LocalSettings.append.php:ro
