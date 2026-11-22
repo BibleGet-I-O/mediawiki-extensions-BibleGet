@@ -12,6 +12,8 @@ use MediaWikiIntegrationTestCase;
 use Psr\Log\AbstractLogger;
 use Psr\Log\NullLogger;
 use Wikimedia\ObjectCache\BagOStuff;
+use Wikimedia\Rdbms\DBQueryError;
+use Wikimedia\Rdbms\IDatabase;
 use Wikimedia\Timestamp\ConvertibleTimestamp;
 
 /**
@@ -279,5 +281,130 @@ class CredentialProviderTest extends MediaWikiIntegrationTestCase {
 			$this->assertStringNotContainsString( 'LEAK', $line );
 			$this->assertStringNotContainsString( 'CLIENTKEY', $line );
 		}
+	}
+
+	/** A DBQueryError like core's, whose message holds the SQL (and so whatever the query held). */
+	private function queryError( string $sql ): DBQueryError {
+		return new DBQueryError( $this->createMock( IDatabase::class ), 'no such table', 1, $sql, __METHOD__ );
+	}
+
+	/** A store whose methods named in $failing throw $error. */
+	private function failingStore( array $failing, DBQueryError $error ): InstallationStore {
+		$lb = $this->getServiceContainer()->getDBLoadBalancer();
+		return new class( $lb, $failing, $error ) extends InstallationStore {
+			public function __construct( $lb, private array $failing, private DBQueryError $error ) {
+				parent::__construct( $lb );
+			}
+
+			private function maybeFail( string $method ): void {
+				if ( in_array( $method, $this->failing, true ) ) {
+					throw $this->error;
+				}
+			}
+
+			public function read(): ?array {
+				$this->maybeFail( 'read' );
+				return parent::read();
+			}
+
+			public function createInstallId( string $installId ): void {
+				$this->maybeFail( 'createInstallId' );
+				parent::createInstallId( $installId );
+			}
+
+			public function saveToken( string $token, ?string $installationId ): void {
+				$this->maybeFail( 'saveToken' );
+				parent::saveToken( $token, $installationId );
+			}
+
+			public function lock(): bool {
+				$this->maybeFail( 'lock' );
+				return parent::lock();
+			}
+		};
+	}
+
+	public function testMissingTableIsSetupFailure() {
+		$store = $this->failingStore(
+			[ 'read' ], $this->queryError( 'SELECT bi_install_id FROM bibleget_installation' )
+		);
+		$provider = $this->provider( null, self::CLIENT_KEY, $store );
+		$this->assertNull( $provider->get() );
+		$this->assertSame( 'bibleget-error-setup', $provider->lastFailure() );
+		$this->assertSame( [], $this->registers );
+		foreach ( $this->logs as $line ) {
+			$this->assertStringNotContainsString( 'no such table', $line, 'only the class is logged' );
+		}
+		$this->assertStringContainsString( 'DBQueryError', implode( "\n", $this->logs ) );
+	}
+
+	public function testEveryStoreCallIsGuarded() {
+		foreach ( [ 'createInstallId', 'lock' ] as $method ) {
+			$this->registers = [];
+			$store = $this->failingStore( [ $method ], $this->queryError( 'SQL' ) );
+			$provider = $this->provider( null, self::CLIENT_KEY, $store );
+			$this->assertNull( $provider->get(), $method );
+			$this->assertSame( 'bibleget-error-setup', $provider->lastFailure(), $method );
+		}
+	}
+
+	public function testSaveTokenErrorKeepsTokenOutOfLogs() {
+		$this->registerAnswers = [ self::registered( 'bginst_SAVELEAK' ) ];
+		$store = $this->failingStore( [ 'saveToken' ], $this->queryError(
+			"UPDATE bibleget_installation SET bi_token = 'bginst_SAVELEAK' WHERE bi_id = 1"
+		) );
+		$this->assertStringContainsString( 'SAVELEAK', $this->queryError( "'bginst_SAVELEAK'" )->getMessage() );
+		$provider = $this->provider( null, self::CLIENT_KEY, $store );
+		$this->assertNull( $provider->get() );
+		$this->assertSame( 'bibleget-error-setup', $provider->lastFailure() );
+		$this->assertCount( 1, $this->registers );
+		$this->assertNotEmpty( $this->logs );
+		foreach ( $this->logs as $line ) {
+			$this->assertStringNotContainsString( 'SAVELEAK', $line );
+		}
+	}
+
+	public function testRequestFailureEndsAfterWindow() {
+		// A long-running job runner keeps one provider: a failure must not last for its whole life.
+		$this->registerAnswers = [ new ApiResult( 0 ), self::registered( 'bginst_LATER' ) ];
+		$provider = $this->provider();
+		$this->assertNull( $provider->get() );
+		ConvertibleTimestamp::setFakeTime( '20261122000459' );
+		$this->assertNull( $provider->get() );
+		$this->assertCount( 1, $this->registers );
+		ConvertibleTimestamp::setFakeTime( '20261122000501' );
+		$this->assertSame( 'bginst_LATER', $provider->get() );
+		$this->assertCount( 2, $this->registers );
+	}
+
+	public function testRejectedTokenWindowEnds() {
+		$this->registerAnswers = [
+			self::registered( 'bginst_FIRST' ), self::registered( 'bginst_SECOND' ), self::registered( 'bginst_THIRD' ),
+		];
+		$provider = $this->provider();
+		$this->assertSame( 'bginst_FIRST', $provider->get() );
+		$provider->invalidate( 'bginst_FIRST' );
+		$this->assertSame( 'bginst_SECOND', $provider->get() );
+		$provider->invalidate( 'bginst_SECOND' );
+		$this->assertNull( $provider->get() );
+		$this->assertCount( 2, $this->registers );
+
+		// Past the window the stored token is read again, and one re-registration is allowed again.
+		ConvertibleTimestamp::setFakeTime( '20261122000501' );
+		$this->assertSame( 'bginst_SECOND', $provider->get() );
+		$provider->invalidate( 'bginst_SECOND' );
+		$this->assertSame( 'bginst_THIRD', $provider->get() );
+		$this->assertCount( 3, $this->registers );
+	}
+
+	public function testCachedTokenIsReReadAfterWindow() {
+		$provider = $this->provider();
+		$this->assertSame( 'bginst_FIRST', $provider->get() );
+		// Another process re-registered and stored a new token.
+		$this->store()->saveToken( 'bginst_OTHER', 'inst-42' );
+		$this->assertSame( 'bginst_FIRST', $provider->get() );
+		ConvertibleTimestamp::setFakeTime( '20261122000501' );
+		$this->assertSame( 'bginst_OTHER', $provider->get() );
+		$this->assertCount( 1, $this->registers );
 	}
 }

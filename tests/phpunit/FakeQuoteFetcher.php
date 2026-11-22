@@ -18,6 +18,8 @@ class FakeQuoteFetcher extends QuoteFetcher {
 		'NABRE' => [
 			'Jn3,16' => 'good-nabre-jn3-16.html',
 			'Mt5' => 'capped-nabre-mt5.html',
+			// The same answer with the endpoint's VERSES_CAPPED notice.
+			'Mt5,1-48' => 'capped-notice-nabre-mt5.html',
 			'Ps23' => 'poetic-ps23.html',
 			'Xyz99,1' => 'bad-reference.html',
 		],

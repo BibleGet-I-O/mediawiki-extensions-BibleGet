@@ -11,6 +11,8 @@ use MediaWiki\Title\Title;
 use MediaWiki\User\User;
 use MediaWikiIntegrationTestCase;
 use Psr\Log\NullLogger;
+use Wikimedia\Rdbms\DBQueryError;
+use Wikimedia\Rdbms\IDatabase;
 
 /**
  * The banner that shows service notices to managers when Echo is not installed.
@@ -121,5 +123,26 @@ class NoticeBannerTest extends MediaWikiIntegrationTestCase {
 			$this->getServiceContainer()->getUserOptionsLookup()
 				->getDefaultOption( 'bibleget-dismissed' )
 		);
+	}
+
+	public function testMissingTableRendersPageWithoutBanner() {
+		// Before update.php the table does not exist: the page must still render.
+		$error = new DBQueryError(
+			$this->createMock( IDatabase::class ), 'no such table: bibleget_notice', 1, 'SELECT bn_id', __METHOD__
+		);
+		$this->setService( 'BibleGet.NoticeStore', new class(
+			$this->getServiceContainer()->getDBLoadBalancer(), $error
+		) extends NoticeStore {
+			public function __construct( $lb, private DBQueryError $error ) {
+				parent::__construct( $lb );
+			}
+
+			public function current(): array {
+				throw $this->error;
+			}
+		} );
+		[ $html, $modules ] = $this->view( $this->getTestSysop()->getUser() );
+		$this->assertSame( '', $html );
+		$this->assertNotContains( 'ext.bibleGet.notices', $modules );
 	}
 }

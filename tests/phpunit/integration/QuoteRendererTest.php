@@ -3,10 +3,14 @@
 namespace MediaWiki\Extension\BibleGet\Tests\Integration;
 
 use MediaWiki\Extension\BibleGet\Tests\FakeQuoteFetcher;
+use MediaWiki\Http\HttpRequestFactory;
 use MediaWiki\Parser\ParserOptions;
 use MediaWiki\Parser\ParserOutput;
+use MediaWiki\Status\Status;
 use MediaWiki\Title\Title;
 use MediaWikiIntegrationTestCase;
+use MWHttpRequest;
+use Psr\Log\AbstractLogger;
 
 /**
  * @group Database
@@ -47,13 +51,17 @@ class QuoteRendererTest extends MediaWikiIntegrationTestCase {
 		$this->assertStringContainsString( '<div class="bibleget-quote">', $html );
 		$this->assertStringContainsString( 'For God so loved the world', $html );
 		$this->assertSame( [ [ 'NABRE', 'Jn 3,16' ] ], $this->fetcher->calls );
-		$this->assertContains( 'ext.bibleGet', $out->getModules() );
+		// The popup script is for inline quotes only; the styles are for every quote.
+		$this->assertNotContains( 'ext.bibleGet', $out->getModules() );
 		$this->assertContains( 'ext.bibleGet.styles', $out->getModuleStyles() );
 		$this->assertSame( [], $out->getCategoryNames() );
 	}
 
 	public function testInlineQuote() {
-		$html = $this->parse( 'See {{#biblequote:Jn 3,16|inline|NABRE}} here.' )->getRawText();
+		$out = $this->parse( 'See {{#biblequote:Jn 3,16|inline|NABRE}} here.' );
+		$this->assertContains( 'ext.bibleGet', $out->getModules() );
+		$this->assertContains( 'ext.bibleGet.styles', $out->getModuleStyles() );
+		$html = $out->getRawText();
 		$this->assertMatchesRegularExpression(
 			'/<span class="bibleget-ref" tabindex="0">Jn 3,16<\/span><span class="bibleget-popup">/',
 			$html
@@ -167,19 +175,81 @@ class QuoteRendererTest extends MediaWikiIntegrationTestCase {
 		$this->assertContains( self::categoryOf( 'bibleget-toolong-category' ), $out->getCategoryNames() );
 		$this->assertNotContains( self::categoryOf( 'bibleget-tracking-category' ), $out->getCategoryNames() );
 
+		// 30 verses with no notice: nothing says the API cut it.
 		$out = $this->parse( '<biblequote version="NABRE">Mt 5</biblequote>' );
 		$this->assertStringNotContainsString( 'bibleget-note', $out->getRawText() );
 		$this->assertSame( [], $out->getCategoryNames() );
 	}
 
+	public function testCappedByApiNoteAndCategory() {
+		// The API cut the quote and said so with a VERSES_CAPPED notice.
+		$out = $this->parse( '<biblequote version="NABRE">Mt 5,1-48</biblequote>' );
+		$html = $out->getRawText();
+		$this->assertSame( 30, substr_count( $html, 'class="sup verseNum"' ) );
+		$this->assertStringContainsString(
+			'<div class="bibleget-note">' . wfMessage( 'bibleget-note-cut', 30 )->escaped() . '</div>',
+			$html
+		);
+		$this->assertContains( self::categoryOf( 'bibleget-toolong-category' ), $out->getCategoryNames() );
+		$this->assertNotContains( self::categoryOf( 'bibleget-tracking-category' ), $out->getCategoryNames() );
+	}
+
 	public function testNoSecretInOutput() {
-		$this->overrideConfigValue( 'BibleGetApiKey', 'bibleget_test_SECRET' );
+		// The real fetcher, credential provider and client; only the HTTP layer is fake.
+		$this->overrideConfigValues( [
+			'BibleGetApiKey' => 'bibleget_test_SECRET',
+			'BibleGetApiBase' => 'https://api.example.test/v4/',
+		] );
+		$sentKeys = [];
+		$factory = $this->createMock( HttpRequestFactory::class );
+		$factory->method( 'create' )->willReturnCallback( function ( $url, $options ) use ( &$sentKeys ) {
+			$this->assertStringStartsWith( 'https://api.example.test/v4/', $url );
+			$unknown = ( $options['postData']['version'] ?? '' ) === 'ZZZZ';
+			$req = $this->createMock( MWHttpRequest::class );
+			$req->method( 'setHeader' )->willReturnCallback( static function ( $name, $value ) use ( &$sentKeys ) {
+				if ( $name === 'X-Api-Key' ) {
+					$sentKeys[] = $value;
+				}
+			} );
+			$req->method( 'execute' )->willReturn(
+				$unknown ? Status::newFatal( 'http-bad-status' ) : Status::newGood()
+			);
+			$req->method( 'getStatus' )->willReturn( $unknown ? 422 : 200 );
+			$req->method( 'getContent' )->willReturn( file_get_contents(
+				__DIR__ . '/../fixtures/answers/' . ( $unknown ? 'unknown-version.html' : 'good-nabre-jn3-16.html' )
+			) );
+			$req->method( 'getResponseHeaders' )->willReturn( [] );
+			return $req;
+		} );
+		$this->setService( 'HttpRequestFactory', $factory );
+		$wiring = require __DIR__ . '/../../../src/ServiceWiring.php';
+		foreach ( [ 'BibleGet.Client', 'BibleGet.CredentialProvider', 'BibleGet.QuoteFetcher' ] as $name ) {
+			$this->setService( $name, $wiring[$name] );
+		}
+		$logs = [];
+		$this->setLogger( 'BibleGet', new class( $logs ) extends AbstractLogger {
+			private array $logs;
+
+			public function __construct( array &$logs ) {
+				$this->logs = &$logs;
+			}
+
+			public function log( $level, $message, array $context = [] ): void {
+				$this->logs[] = $message . ' ' . json_encode( $context );
+			}
+		} );
+
 		$out = $this->parse(
 			"<biblequote>Jn 3,16</biblequote>\n\n<biblequote version=\"ZZZZ\">Jn 3,16</biblequote>"
 		);
-		$this->assertStringNotContainsString( 'SECRET', $out->getRawText() );
+		$html = $out->getRawText();
+		$this->assertSame( [ 'bibleget_test_SECRET', 'bibleget_test_SECRET' ], $sentKeys, 'the real path ran' );
+		$this->assertStringContainsString( 'For God so loved the world', $html );
+		$this->assertStringContainsString( 'bibleget-failed', $html );
+		$this->assertStringNotContainsString( 'SECRET', $html );
 		$this->assertStringNotContainsString( 'SECRET', json_encode( $out->getJsConfigVars() ) );
 		$this->assertStringNotContainsString( 'SECRET', json_encode( $out->getExtensionData( 'bibleget-fetched' ) ) );
+		$this->assertStringNotContainsString( 'SECRET', implode( "\n", $logs ) );
 	}
 
 	public function testRendererIsWired() {

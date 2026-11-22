@@ -6,12 +6,14 @@ use MediaWiki\Extension\BibleGet\Notifications\ManagerLocator;
 use MediaWiki\Extension\BibleGet\Notifications\NoticeNotifier;
 use MediaWiki\Hook\ParserFirstCallInitHook;
 use MediaWiki\Html\Html;
+use MediaWiki\Logger\LoggerFactory;
 use MediaWiki\MediaWikiServices;
 use MediaWiki\Output\Hook\BeforePageDisplayHook;
 use MediaWiki\Output\OutputPage;
 use MediaWiki\Parser\Parser;
 use MediaWiki\Parser\PPFrame;
 use MediaWiki\Preferences\Hook\GetPreferencesHook;
+use Wikimedia\Rdbms\DBError;
 
 /**
  * Registers <biblequote> and {{#biblequote:}}; both render through QuoteRenderer.
@@ -96,8 +98,18 @@ class Hooks implements ParserFirstCallInitHook, BeforePageDisplayHook, GetPrefer
 		$dismissed = array_flip( explode( '|',
 			(string)$services->getUserOptionsLookup()->getOption( $user, self::DISMISSED_OPTION, '' )
 		) );
+		try {
+			$notices = $services->getService( 'BibleGet.NoticeStore' )->current();
+		} catch ( DBError $e ) {
+			// Most likely update.php has not run: the page must still render.
+			LoggerFactory::getInstance( 'BibleGet' )->warning(
+				'BibleGet could not read its service notices ({class}); run update.php',
+				[ 'class' => get_class( $e ) ]
+			);
+			return;
+		}
 		$html = '';
-		foreach ( $services->getService( 'BibleGet.NoticeStore' )->current() as $notice ) {
+		foreach ( $notices as $notice ) {
 			if ( !isset( $dismissed[$notice['id']] ) ) {
 				$html .= self::banner( $notice, $out );
 			}

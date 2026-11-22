@@ -53,7 +53,6 @@ class QuoteRenderer {
 		}
 
 		$output = $parser->getOutput();
-		$output->addModules( [ 'ext.bibleGet' ] );
 		$output->addModuleStyles( [ 'ext.bibleGet.styles' ] );
 
 		$result = $this->fetch( $parser, $output, $version, $reference );
@@ -63,15 +62,19 @@ class QuoteRenderer {
 
 		$answer = $result->answer;
 		$html = $answer->html;
-		if ( $answer->cut ) {
-			// Only our own cut gets the note; an answer the API capped is shown as it came.
+		if ( $answer->cut || $answer->cappedByApi ) {
+			// Cut here (more verses than the limit) or by the API (its VERSES_CAPPED notice):
+			// either way the quote is incomplete, so it gets the note and the category.
 			$parser->addTrackingCategory( 'bibleget-toolong-category' );
+			$shown = $answer->cut ? $this->maxVersesPerQuote : $answer->verseCount;
 			$html .= Html::element( 'div', [ 'class' => 'bibleget-note' ],
-				$parser->msg( 'bibleget-note-cut' )->numParams( $this->maxVersesPerQuote )->text() );
+				$parser->msg( 'bibleget-note-cut' )->numParams( $shown )->text() );
 		}
 		if ( !$inline ) {
 			return Html::rawElement( 'div', [ 'class' => 'bibleget-quote' ], $html );
 		}
+		// The popup script (and its styles) only serves inline quotes.
+		$output->addModules( [ 'ext.bibleGet' ] );
 		return Html::rawElement( 'span', [ 'class' => 'bibleget-inline' ],
 			Html::element( 'span', [ 'class' => 'bibleget-ref', 'tabindex' => '0' ], $reference )
 			. Html::rawElement( 'span', [ 'class' => 'bibleget-popup' ], self::toPhrasing( $html ) )
@@ -129,6 +132,9 @@ class QuoteRenderer {
 		libxml_use_internal_errors( $prev );
 
 		$body = $doc->getElementsByTagName( 'body' )->item( 0 );
+		if ( !$body instanceof DOMElement ) {
+			return '';
+		}
 		$blocks = [];
 		foreach ( [ 'div', 'p' ] as $tag ) {
 			foreach ( $body->getElementsByTagName( $tag ) as $element ) {

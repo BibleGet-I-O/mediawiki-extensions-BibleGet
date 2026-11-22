@@ -18,8 +18,9 @@ Requires MediaWiki 1.43 or later and PHP 8.1 or later. The cURL extension is not
    ```
 
 3. Create the database tables: run `php maintenance/run.php update` (`update.php`). The tables are
-   `bibleget_installation` and `bibleget_notice`. Until you do, quotes are not fetched and
-   `Special:BibleGet` tells you the tables are missing.
+   `bibleget_installation` and `bibleget_notice`. Until you do, a wiki without a project key shows every quote
+   as the fallback, with the reason "BibleGet is not set up yet: run update.php", and `Special:BibleGet`
+   tells you the tables are missing. Pages still render.
 
 ## Usage
 
@@ -34,8 +35,9 @@ Requires MediaWiki 1.43 or later and PHP 8.1 or later. The cURL extension is not
   quote in a popup; otherwise the quote is a block.
 - The parser function takes `reference|display|version`. `display` is `inline` or `block`; `true` and
   `false`, as 1.0 accepted, still work.
-- A quote that cannot be fetched shows the reference as plain text with a short note, and the page is
-  put in a tracking category.
+- A quote that cannot be fetched shows the reference as plain text followed by a `[!]` marker whose
+  tooltip gives the reason, and the page is put in a tracking category.
+- A tag or function with no reference shows an error ("No Bible reference was given").
 
 ## Settings
 
@@ -57,10 +59,13 @@ for this release. Until then, registration cannot work: set `$wgBibleGetApiKey` 
 ## Registration or a project key
 
 - **Registration (default).** With no `$wgBibleGetApiKey`, the wiki registers itself with BibleGet the first
-  time it needs to fetch a quote, using the client key and a random installation id. BibleGet returns a
-  token, which is kept in the `bibleget_installation` table. If BibleGet rejects the token, the wiki
-  registers again and retries once. The site URL (`$wgCanonicalServer`) is sent; nothing else is.
-  If registration is refused, the extension waits (the `Retry-After` time, or an hour) before trying again.
+  time it needs to fetch a quote, using the client key. BibleGet returns a token, which is kept in the
+  `bibleget_installation` table. If BibleGet rejects the token, the wiki registers again and retries once.
+  Registration sends the site URL (`$wgCanonicalServer`), a random installation id and the extension
+  version; no email address or other personal data is sent.
+- **When registration fails.** A refusal with HTTP 429 waits for the `Retry-After` time (an hour when
+  there is none). A revoked client key (HTTP 401) waits an hour; update the extension or set a project
+  key. Other failures, such as a network error, are retried after a short pause (a few minutes).
 - **Project key.** If you have a BibleGet project key, set `$wgBibleGetApiKey`. It is used as is and the
   wiki never registers.
 
@@ -77,7 +82,16 @@ for this release. Until then, registration cannot work: set `$wgBibleGetApiKey` 
   $wgRateLimits['bibleget-fetch']['anon'] = [ 10, 60 ];
   ```
 
+  The limit applies to web and API requests, and so to the user whose view or edit reparses a page:
+  when a page holds more uncached quotes than that user's limit (30 for anonymous readers by default),
+  the quotes over the limit show the fallback until a later parse. Raise the limit if your pages hold
+  many quotes, for example `$wgRateLimits['bibleget-fetch']['anon'] = [ 100, 60 ];`.
+  Maintenance scripts are not limited: `runJobs.php` reparses (after a template edit, for example) run
+  as one user for the whole process, so the limit would otherwise turn their quotes into fallbacks.
+
 - **Quotes per page.** `$wgBibleGetMaxQuotesPerPage` (50).
+- **Cut by the API.** For copyrighted editions BibleGet itself returns at most 30 verses and says so in
+  its answer. Such a quote gets the same note and tracking category as one cut by the wiki.
 - A failure is remembered briefly (minutes) so a broken reference or a service outage does not make every
   parse send a new request, and the page is re-parsed after about an hour.
 
@@ -85,7 +99,8 @@ for this release. Until then, registration cannot work: set `$wgBibleGetApiKey` 
 
 - "Pages with failed Bible quotes": the quote could not be fetched, or the reference or version was
   not recognised.
-- "Pages with Bible quotes cut to the verse limit": a quote was cut at the verse limit.
+- "Pages with Bible quotes cut to the verse limit": a quote was cut at the verse limit, by the wiki or
+  by BibleGet.
 
 The category names are messages (`bibleget-tracking-category`, `bibleget-toolong-category`) and can be
 changed on the wiki.
@@ -114,7 +129,13 @@ received. It never shows the key or the token.
 
 Changes that may affect you: the MediaWiki minimum is 1.43 and the PHP minimum 8.1; ext-curl is no longer
 needed; quotes come from the v4 API; the `ref`, `version` and `inline` attributes and the
-`{{#biblequote:}}` arguments are unchanged. `$wgBibleGetDefaultBibleVersion` keeps its meaning. See `CHANGELOG.md`.
+`{{#biblequote:}}` arguments are unchanged. `$wgBibleGetDefaultBibleVersion` keeps its meaning.
+
+- `update.php` is required. Until it runs, quotes show the fallback with the reason "BibleGet is not set
+  up yet: run update.php" (on a wiki without a project key).
+- A tag or function with no reference now shows an error instead of quoting John 3:16.
+
+See `CHANGELOG.md`.
 
 ## Development
 

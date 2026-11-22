@@ -71,7 +71,10 @@ return [
 			(int)$config->get( 'BibleGetCacheExpiry' ),
 			(int)$config->get( 'BibleGetMaxVersesPerQuote' ),
 			LoggerFactory::getInstance( 'BibleGet' ),
-			$services->getService( 'BibleGet.NoticeNotifier' )
+			$services->getService( 'BibleGet.NoticeNotifier' ),
+			// Maintenance scripts (runJobs.php) are not rate limited: their reparses run as one
+			// user for the life of the process. Web and API requests are.
+			MW_ENTRY_POINT !== 'cli'
 		);
 	},
 	'BibleGet.QuoteRenderer' => static function ( MediaWikiServices $services ): QuoteRenderer {

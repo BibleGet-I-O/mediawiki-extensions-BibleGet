@@ -19,6 +19,8 @@ use MediaWikiIntegrationTestCase;
 use Psr\Log\NullLogger;
 use Wikimedia\ObjectCache\BagOStuff;
 use Wikimedia\ObjectCache\WANObjectCache;
+use Wikimedia\Rdbms\DBQueryError;
+use Wikimedia\Rdbms\IDatabase;
 use Wikimedia\Timestamp\ConvertibleTimestamp;
 
 /**
@@ -50,7 +52,7 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 
 	protected function setUp(): void {
 		parent::setUp();
-		$this->wan = new WANObjectCache( [ 'cache' => new HashBagOStuff() ] );
+		$this->wan = new WANObjectCache( [ 'cache' => new HashBagOStuff( [ 'keyspace' => 'wikia' ] ) ] );
 		$this->stash = new HashBagOStuff();
 		$this->quotes = [];
 		$this->registers = [];
@@ -93,17 +95,23 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		};
 	}
 
-	private function fetcher( ?string $apiKey = self::PROJECT_KEY, string $base = self::BASE ): QuoteFetcher {
+	private function fetcher(
+		?string $apiKey = self::PROJECT_KEY,
+		string $base = self::BASE,
+		bool $limitFetches = true,
+		int $maxVerses = 30,
+		?InstallationStore $store = null
+	): QuoteFetcher {
 		$services = $this->getServiceContainer();
 		$client = $this->client();
-		$store = new InstallationStore( $services->getDBLoadBalancer() );
+		$store ??= new InstallationStore( $services->getDBLoadBalancer() );
 		$credentials = new CredentialProvider(
 			$apiKey, 'bgclient_test_CLIENTKEY', 'https://wiki.example.test', $store, $client,
 			$this->stash, $services->getGlobalIdGenerator(), new NullLogger()
 		);
 		return new QuoteFetcher(
-			$client, $credentials, $this->wan, $this->stash, $base, self::EXPIRY, 30, new NullLogger(),
-			$this->notifier()
+			$client, $credentials, $this->wan, $this->stash, $base, self::EXPIRY, $maxVerses, new NullLogger(),
+			$this->notifier(), $limitFetches
 		);
 	}
 
@@ -134,9 +142,20 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		return $user;
 	}
 
+	/** The wiki-local key a failure is cached under. */
+	private function failureKey( string $version, string $reference, string $base = self::BASE ): string {
+		return $this->wan->makeKey(
+			'bibleget-quote-failure', md5( $base ), $version, md5( preg_replace( '/\s+/u', '', $reference ) )
+		);
+	}
+
+	/** TTL left of the cached answer, or else of the cached failure. */
 	private function cachedTtl( QuoteFetcher $fetcher, string $version, string $reference ): float {
 		$curTTL = null;
 		$value = $this->wan->get( $fetcher->makeCacheKey( $version, $reference ), $curTTL );
+		if ( $value === false ) {
+			$value = $this->wan->get( $this->failureKey( $version, $reference ), $curTTL );
+		}
 		$this->assertNotFalse( $value, 'entry is cached' );
 		return (float)$curTTL;
 	}
@@ -456,5 +475,117 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		$this->assertInstanceOf( InstallationStore::class, $services->getService( 'BibleGet.InstallationStore' ) );
 		$this->assertInstanceOf( CredentialProvider::class, $services->getService( 'BibleGet.CredentialProvider' ) );
 		$this->assertInstanceOf( QuoteFetcher::class, $services->getService( 'BibleGet.QuoteFetcher' ) );
+	}
+
+	public function testUnreachableEndsInLongRunningProcess() {
+		// runJobs.php --wait keeps one fetcher for hours: the fail-fast window must still end.
+		$fetcher = $this->fetcher();
+		$this->quoteAnswer = static fn () => new ApiResult( 0 );
+		$this->assertSame( 'bibleget-error-network', $fetcher->fetch( 'NABRE', 'Mt 5,3', $this->user() )->failureKey );
+		$this->quoteAnswer = static fn () => new ApiResult( 200, self::fixture( 'good-nabre-jn3-16.html' ) );
+		ConvertibleTimestamp::setFakeTime( '20261122000059' );
+		$this->assertSame( 'bibleget-error-network', $fetcher->fetch( 'NABRE', 'Jn 3,16', $this->user() )->failureKey );
+		$this->assertCount( 1, $this->quotes );
+		ConvertibleTimestamp::setFakeTime( '20261122000101' );
+		$this->assertNull( $fetcher->fetch( 'NABRE', 'Jn 3,16', $this->user() )->failureKey );
+		$this->assertCount( 2, $this->quotes );
+	}
+
+	public function testRegistrationFailureEndsInLongRunningProcess() {
+		$this->registerAnswers = [
+			new ApiResult( 500, '' ),
+			new ApiResult( 201, json_encode( [ 'token' => 'bginst_TOKEN', 'installation_id' => 'i-1' ] ) ),
+		];
+		$fetcher = $this->fetcher( null );
+		foreach ( [ 'Jn 3,16', 'Mt 5,3' ] as $reference ) {
+			$this->assertSame(
+				'bibleget-error-registration',
+				$fetcher->fetch( 'NABRE', $reference, $this->user() )->failureKey
+			);
+		}
+		$this->assertCount( 1, $this->registers );
+		ConvertibleTimestamp::setFakeTime( '20261122000501' );
+		$this->assertNull( $fetcher->fetch( 'NABRE', 'Ps 23', $this->user() )->failureKey );
+		$this->assertCount( 2, $this->registers );
+	}
+
+	public function testCliSkipsRateLimit() {
+		$user = $this->createMock( User::class );
+		$user->expects( $this->never() )->method( 'pingLimiter' );
+		$result = $this->fetcher( self::PROJECT_KEY, self::BASE, false )->fetch( 'NABRE', 'Jn 3,16', $user );
+		$this->assertNull( $result->failureKey );
+		$this->assertCount( 1, $this->quotes );
+	}
+
+	public function testWebKeepsRateLimit() {
+		$fetcher = $this->fetcher( self::PROJECT_KEY, self::BASE, true );
+		$limited = $fetcher->fetch( 'NABRE', 'Jn 3,16', $this->user( true ) );
+		$this->assertSame( 'bibleget-error-ratelimit', $limited->failureKey );
+		$this->assertSame( [], $this->quotes );
+	}
+
+	public function testWiringChecksEntryPoint() {
+		// PHPUnit runs as the CLI entry point, so the wired fetcher does not ping the limiter.
+		$this->assertSame( 'cli', MW_ENTRY_POINT );
+		$wiring = require __DIR__ . '/../../../src/ServiceWiring.php';
+		$this->overrideConfigValue( 'BibleGetApiKey', self::PROJECT_KEY );
+		$this->setService( 'BibleGet.Client', $this->client() );
+		$fetcher = $wiring['BibleGet.QuoteFetcher']( $this->getServiceContainer() );
+		$user = $this->createMock( User::class );
+		$user->expects( $this->never() )->method( 'pingLimiter' );
+		$this->assertNull( $fetcher->fetch( 'NABRE', 'Jn 3,16 wiring', $user )->failureKey );
+		$this->assertCount( 1, $this->quotes, 'the fake client answered' );
+	}
+
+	public function testAnswerKeyHoldsVerseLimit() {
+		$this->quoteAnswer = static fn () => new ApiResult( 200, self::fixture( 'full-drb-mt5.html' ) );
+		$this->assertNotSame(
+			$this->fetcher()->makeCacheKey( 'DRB', 'Mt5' ),
+			$this->fetcher( self::PROJECT_KEY, self::BASE, true, 10 )->makeCacheKey( 'DRB', 'Mt5' )
+		);
+		$this->assertTrue( $this->fetcher()->fetch( 'DRB', 'Mt5', $this->user() )->answer->cut );
+		// A wiki with another verse limit does not get the answer cut to 30.
+		$other = $this->fetcher( self::PROJECT_KEY, self::BASE, true, 60 )->fetch( 'DRB', 'Mt5', $this->user() );
+		$this->assertFalse( $other->fromCache );
+		$this->assertFalse( $other->answer->cut );
+		$this->assertCount( 2, $this->quotes );
+	}
+
+	public function testFailureCachedPerWiki() {
+		$this->quoteAnswer = static fn () => new ApiResult( 503, 'down' );
+		$fetcher = $this->fetcher();
+		$fetcher->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		// Answers are shared by the farm (global key); a failure depends on this wiki's credential.
+		$this->assertStringStartsWith( 'global:', $fetcher->makeCacheKey( 'NABRE', 'Jn 3,16' ) );
+		$this->assertFalse( $this->wan->get( $fetcher->makeCacheKey( 'NABRE', 'Jn 3,16' ) ) );
+		$failureKey = $this->failureKey( 'NABRE', 'Jn 3,16' );
+		$this->assertStringStartsWith( 'wikia:', $failureKey );
+		$this->assertSame( [ 'failure' => 'bibleget-error-status' ], $this->wan->get( $failureKey ) );
+		$again = $this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		$this->assertTrue( $again->fromCache );
+		$this->assertSame( 'bibleget-error-status', $again->failureKey );
+		$this->assertCount( 1, $this->quotes );
+	}
+
+	public function testMissingTableIsSetupFailure() {
+		$store = new class( $this->getServiceContainer()->getDBLoadBalancer(), $this ) extends InstallationStore {
+			public function __construct( $lb, private QuoteFetcherTest $test ) {
+				parent::__construct( $lb );
+			}
+
+			public function read(): ?array {
+				throw $this->test->queryError();
+			}
+		};
+		$result = $this->fetcher( null, self::BASE, true, 30, $store )->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		$this->assertNull( $result->answer );
+		$this->assertSame( 'bibleget-error-setup', $result->failureKey );
+		$this->assertSame( [], $this->quotes );
+		$this->assertSame( [], $this->registers );
+	}
+
+	/** @internal for the failing store */
+	public function queryError(): DBQueryError {
+		return new DBQueryError( $this->createMock( IDatabase::class ), 'no such table', 1, 'SELECT 1', __METHOD__ );
 	}
 }

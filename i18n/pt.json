@@ -18,6 +18,7 @@
 	"bibleget-error-clientkey-revoked": "O serviço BibleGet já não aceita esta versão da extensão; atualize-a ou defina uma chave de projeto do BibleGet.",
 	"bibleget-error-noref": "Não foi indicada nenhuma referência bíblica.",
 	"bibleget-error-toomany": "Esta página tem mais citações bíblicas do que esta wiki permite numa só página.",
+	"bibleget-error-setup": "O BibleGet ainda não está configurado: execute update.php.",
 	"bibleget-note-cut": "{{PLURAL:$1|Apenas o primeiro versículo é mostrado|Apenas os primeiros $1 versículos são mostrados}}.",
 	"bibleget-popup-close": "Fechar",
 	"right-bibleget-manage": "Gerir a extensão BibleGet e receber os seus avisos de serviço",

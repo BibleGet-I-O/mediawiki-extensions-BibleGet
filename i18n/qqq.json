@@ -18,6 +18,7 @@
 	"bibleget-error-clientkey-revoked": "Reason shown in the tooltip of a failed Bible quote: the BibleGet API revoked the client key bundled with this release of the extension. A \"project key\" is an API key obtained from the BibleGet developer pages.",
 	"bibleget-error-noref": "Error shown in place of a Bible quote when <code><nowiki><biblequote></nowiki></code> or <code><nowiki>{{#biblequote:}}</nowiki></code> is used without a reference.",
 	"bibleget-error-toomany": "Reason shown in the tooltip of a failed Bible quote: the page already has the maximum number of distinct Bible quotes ($wgBibleGetMaxQuotesPerPage).",
+	"bibleget-error-setup": "Reason shown in the tooltip of a failed Bible quote when the extension's database tables are missing or cannot be used, usually because the wiki administrator has not run update.php after installing or upgrading the extension.\n\n\"update.php\" is the name of a MediaWiki maintenance script and should not be translated.",
 	"bibleget-note-cut": "Note shown at the end of a Bible quote that was cut to the verse limit.\n\nParameters:\n* $1 - the maximum number of verses shown for one quote",
 	"bibleget-popup-close": "Tooltip and accessible name of the button that closes a Bible quote popup.",
 	"right-bibleget-manage": "{{doc-right|bibleget-manage}}\nThe right to manage the BibleGet extension; holders also receive the BibleGet service notices.",

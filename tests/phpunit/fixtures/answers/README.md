@@ -9,6 +9,7 @@ these files). Each file is the raw response body.
 | good-nabre-jn3-16.html | Jn3,16 | NABRE | 200 |
 | poetic-ps23.html | Ps23 | NABRE | 200 |
 | capped-nabre-mt5.html | Mt5 | NABRE | 200 (30 of 48 verses: the API's copyright cap, no notice yet) |
+| capped-notice-nabre-mt5.html | Mt5 | NABRE | not captured: capped-nabre-mt5.html with a `VERSES_CAPPED` notice (endpoint #250 shape) added by hand |
 | full-drb-mt5.html | Mt5 | DRB | 200 (all 48 verses) |
 | multichapter-drb-mt5-48-6-2.html | Mt5,48-6,2 | DRB | 200 |
 | bad-reference.html | Xyz99,1 | NABRE | 200 (errors table, empty results) |

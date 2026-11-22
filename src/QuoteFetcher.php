@@ -23,8 +23,11 @@ class QuoteFetcher {
 	/** Seconds other requests skip the API after it gave no answer. */
 	public const UNREACHABLE_TTL = 60;
 
-	/** The API gave no answer in this request: later uncached fetches fail at once. */
-	private bool $unreachable = false;
+	/**
+	 * Until when this process skips the API after it gave no answer, without asking the stash.
+	 * An expiry, not a flag: a job runner keeps this object for hours.
+	 */
+	private int $unreachableUntil = 0;
 
 	public function __construct(
 		private readonly BibleGetClient $client,
@@ -35,25 +38,47 @@ class QuoteFetcher {
 		private readonly int $cacheExpiry,
 		private readonly int $maxVerses,
 		private readonly LoggerInterface $logger,
-		private readonly ?NoticeNotifier $notifier = null
+		private readonly ?NoticeNotifier $notifier = null,
+		private readonly bool $limitFetches = true
 	) {
 	}
 
 	/**
-	 * Cache key of a quote: the API address, the version and the reference without whitespace.
+	 * Cache key of a quote's answer, shared by the wikis of a farm: the API address, the
+	 * verse limit the answer was cut to, the version and the reference without whitespace.
 	 */
 	public function makeCacheKey( string $version, string $reference ): string {
 		return $this->cache->makeGlobalKey(
 			'bibleget-quote',
 			md5( $this->apiBase ),
+			$this->maxVerses,
 			$version,
-			md5( preg_replace( '/\s+/u', '', $reference ) ?? $reference )
+			self::referenceHash( $reference )
 		);
+	}
+
+	/**
+	 * Cache key of a quote's failure. Wiki-local: a failure can depend on this wiki's credential.
+	 */
+	private function makeFailureKey( string $version, string $reference ): string {
+		return $this->cache->makeKey(
+			'bibleget-quote-failure',
+			md5( $this->apiBase ),
+			$version,
+			self::referenceHash( $reference )
+		);
+	}
+
+	private static function referenceHash( string $reference ): string {
+		return md5( preg_replace( '/\s+/u', '', $reference ) ?? $reference );
 	}
 
 	public function fetch( string $version, string $reference, User $user ): QuoteResult {
 		$key = $this->makeCacheKey( $version, $reference );
-		$cached = $this->fromCache( $this->cache->get( $key ) );
+		$failureKey = $this->makeFailureKey( $version, $reference );
+		$entries = $this->cache->getMulti( [ $key, $failureKey ] );
+		$cached = $this->fromCache( $entries[$key] ?? false, 'answer' )
+			?? $this->fromCache( $entries[$failureKey] ?? false, 'failure' );
 		if ( $cached ) {
 			return $cached;
 		}
@@ -63,7 +88,8 @@ class QuoteFetcher {
 			return $this->failure( 'bibleget-error-network' );
 		}
 
-		if ( $user->pingLimiter( 'bibleget-fetch' ) ) {
+		// Not for maintenance scripts: a job runner's reparses run as one user for hours.
+		if ( $this->limitFetches && $user->pingLimiter( 'bibleget-fetch' ) ) {
 			// The user's limit, not the quote's: not cached, and not a BibleGet failure to record.
 			return new QuoteResult( null, 'bibleget-error-ratelimit', false );
 		}
@@ -72,9 +98,11 @@ class QuoteFetcher {
 		if ( $result->failureKey === 'bibleget-error-network' ) {
 			$this->markUnreachable();
 		}
-		$this->cache->set( $key, $result->answer
-			? [ 'answer' => $result->answer->toArray() ]
-			: [ 'failure' => $result->failureKey ], $ttl );
+		if ( $result->answer ) {
+			$this->cache->set( $key, [ 'answer' => $result->answer->toArray() ], $ttl );
+		} else {
+			$this->cache->set( $failureKey, [ 'failure' => $result->failureKey ], $ttl );
+		}
 		if ( $result->failureKey !== null ) {
 			$this->recordFailure( $result->failureKey );
 		}
@@ -161,13 +189,14 @@ class QuoteFetcher {
 	 * A cache entry, or null for a miss. A bad, stale or partial entry is a miss.
 	 *
 	 * @param mixed $value
+	 * @param string $kind 'answer' or 'failure': what the key holds
 	 */
-	private function fromCache( $value ): ?QuoteResult {
+	private function fromCache( $value, string $kind ): ?QuoteResult {
 		if ( !is_array( $value ) ) {
 			return null;
 		}
-		if ( isset( $value['failure'] ) ) {
-			return is_string( $value['failure'] ) ? new QuoteResult( null, $value['failure'], true ) : null;
+		if ( $kind === 'failure' ) {
+			return is_string( $value['failure'] ?? null ) ? new QuoteResult( null, $value['failure'], true ) : null;
 		}
 		$data = $value['answer'] ?? null;
 		if ( !is_array( $data ) || !self::isAnswerData( $data ) ) {
@@ -191,20 +220,17 @@ class QuoteFetcher {
 	}
 
 	private function isUnreachable(): bool {
-		if ( $this->unreachable ) {
+		$now = (int)ConvertibleTimestamp::time();
+		if ( $this->unreachableUntil > $now ) {
 			return true;
 		}
 		$flag = $this->stash->get( $this->unreachableKey() );
-		return is_int( $flag ) && $flag > ConvertibleTimestamp::time();
+		return is_int( $flag ) && $flag > $now;
 	}
 
 	private function markUnreachable(): void {
-		$this->unreachable = true;
-		$this->stash->set(
-			$this->unreachableKey(),
-			(int)ConvertibleTimestamp::time() + self::UNREACHABLE_TTL,
-			self::UNREACHABLE_TTL
-		);
+		$this->unreachableUntil = (int)ConvertibleTimestamp::time() + self::UNREACHABLE_TTL;
+		$this->stash->set( $this->unreachableKey(), $this->unreachableUntil, self::UNREACHABLE_TTL );
 	}
 
 	private function unreachableKey(): string {

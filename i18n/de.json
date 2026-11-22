@@ -18,6 +18,7 @@
 	"bibleget-error-clientkey-revoked": "Der BibleGet-Dienst akzeptiert diese Version der Erweiterung nicht mehr; aktualisiere sie oder lege einen BibleGet-Projektschlüssel fest.",
 	"bibleget-error-noref": "Es wurde keine Bibelstelle angegeben.",
 	"bibleget-error-toomany": "Diese Seite enthält mehr Bibelzitate, als dieses Wiki auf einer Seite zulässt.",
+	"bibleget-error-setup": "BibleGet ist noch nicht eingerichtet; führe update.php aus.",
 	"bibleget-note-cut": "{{PLURAL:$1|Nur der erste Vers wird|Nur die ersten $1 Verse werden}} angezeigt.",
 	"bibleget-popup-close": "Schließen",
 	"right-bibleget-manage": "Die BibleGet-Erweiterung verwalten und ihre Dienstmitteilungen erhalten",

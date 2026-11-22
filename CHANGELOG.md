@@ -12,8 +12,12 @@ All notable changes to this extension are documented here. The format follows
 - Automatic registration with BibleGet (`$wgBibleGetClientKey`), unless a project key is set in
   `$wgBibleGetApiKey`. The token is stored in the new `bibleget_installation` table.
 - Limit of 30 verses per quote (`$wgBibleGetMaxVersesPerQuote`) with a note when a quote is cut, and a limit
-  of 50 quotes per page (`$wgBibleGetMaxQuotesPerPage`).
-- The `bibleget-fetch` rate limit for uncached fetches.
+  of 50 quotes per page (`$wgBibleGetMaxQuotesPerPage`). A quote the API itself cut (its `VERSES_CAPPED`
+  notice) gets the same note and tracking category.
+- The `bibleget-fetch` rate limit for uncached fetches in web and API requests. Maintenance scripts such
+  as `runJobs.php` are not limited.
+- Until `update.php` has created the tables, quotes show the fallback with the reason "BibleGet is not
+  set up yet" (`bibleget-error-setup`) and pages render normally.
 - Tracking categories for failed quotes and for quotes cut to the verse limit.
 - Service notices from BibleGet for users with the new `bibleget-manage` right (sysops by default): Echo
   notifications, or a dismissible banner without Echo. Stored in the new `bibleget_notice` table.
@@ -36,8 +40,9 @@ All notable changes to this extension are documented here. The format follows
 
 ### Breaking changes
 
-- A clean break from 1.x: delete the `bibleQuotes/` directory, run `update.php` to create the new tables,
-  and purge pages that use quotes.
+- A clean break from 1.x: delete the `bibleQuotes/` directory, run `update.php` to create the new tables
+  (required: until it runs, quotes show the fallback), and purge pages that use quotes.
+- A tag or function with no reference shows an error instead of quoting John 3:16.
 - MediaWiki below 1.43 and PHP below 8.1 are no longer supported.
 - Quotes longer than 30 verses are cut; pages with more than 50 quotes show the fallback for the rest.
 - Quotes are no longer cached forever: they expire after `$wgBibleGetCacheExpiry`.
