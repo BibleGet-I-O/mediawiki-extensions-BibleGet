@@ -6,14 +6,17 @@
 
 const OPTION = 'bibleget-dismissed';
 
-function dismiss( button ) {
+// One save at a time: each dismissal reads the option when its turn comes, so a second click
+// before the first save returns does not overwrite the first id.
+let queue = Promise.resolve();
+
+function save( button ) {
 	const id = button.getAttribute( 'data-bibleget-notice' );
 	const ids = String( mw.user.options.get( OPTION ) || '' ).split( '|' ).filter( Boolean );
 	if ( ids.indexOf( id ) === -1 ) {
 		ids.push( id );
 	}
-	button.disabled = true;
-	new mw.Api().saveOption( OPTION, ids.join( '|' ) ).then( () => {
+	return new mw.Api().saveOption( OPTION, ids.join( '|' ) ).then( () => {
 		mw.user.options.set( OPTION, ids.join( '|' ) );
 		const notice = button.closest( '.bibleget-service-notice' );
 		if ( notice ) {
@@ -22,6 +25,11 @@ function dismiss( button ) {
 	}, () => {
 		button.disabled = false;
 	} );
+}
+
+function dismiss( button ) {
+	button.disabled = true;
+	queue = queue.then( () => save( button ) );
 }
 
 document.addEventListener( 'click', ( event ) => {

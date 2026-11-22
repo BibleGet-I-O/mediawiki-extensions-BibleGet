@@ -102,6 +102,8 @@ function place( wrapper ) {
 				r.top - height - 6 :
 				Math.max( MARGIN, vh - height - MARGIN );
 		}
+		// A reference scrolled partly above the viewport must not push the quote's start out of view.
+		top = Math.max( MARGIN, top );
 	}
 	popup.style.top = top + 'px';
 	popup.style.left = left + 'px';
@@ -119,9 +121,10 @@ function scheduleHide( wrapper ) {
 	}, HIDE_DELAY ) );
 }
 
-function reposition() {
-	Array.from( document.querySelectorAll( '.bibleget-inline.bibleget-open:not(.bibleget-sticky)' ) )
-		.forEach( place );
+// On scroll a sticky popup stays where it is; on resize every open popup is placed again, so a
+// sticky one and its close button stay inside the narrower viewport.
+function reposition( selector ) {
+	Array.from( document.querySelectorAll( selector ) ).forEach( place );
 }
 
 document.addEventListener( 'mouseover', ( ev ) => {
@@ -172,5 +175,6 @@ document.addEventListener( 'keydown', ( ev ) => {
 	}
 } );
 
-window.addEventListener( 'resize', reposition );
-window.addEventListener( 'scroll', reposition, { passive: true } );
+window.addEventListener( 'resize', () => reposition( '.bibleget-inline.bibleget-open' ) );
+window.addEventListener( 'scroll', () => reposition( '.bibleget-inline.bibleget-open:not(.bibleget-sticky)' ),
+	{ passive: true } );
