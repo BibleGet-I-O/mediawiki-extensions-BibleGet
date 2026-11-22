@@ -82,18 +82,21 @@ for this release. Until then, registration cannot work: set `$wgBibleGetApiKey` 
 - **30 verses per quote.** A longer quote is cut after `$wgBibleGetMaxVersesPerQuote` verses, with a note
   saying how many are shown, and the page goes in the "cut to the verse limit" tracking category.
 - **Rate limit.** Each uncached fetch counts against the `bibleget-fetch` rate limit (MediaWiki's
-  `$wgRateLimits`). The defaults, in `extension.json`, are 30 per 60 seconds for anonymous users, IP
-  addresses and newbies, and 120 per 60 seconds for users. Quotes already cached never count. Over the
-  limit, the quote shows the fallback. Override it as usual:
+  `$wgRateLimits`). The defaults, in `extension.json`, are 30 per 60 seconds per IP address (`ip`) and for
+  newbies, and 120 per 60 seconds for users. Quotes already cached never count. Over the limit, the quote
+  shows the fallback, and that page is not stored in the parser cache, so the next view fetches it. There
+  is deliberately no `anon` default: MediaWiki counts `anon` once for all anonymous users of the wiki, and
+  web requests also run queued jobs (`$wgJobRunRate`) as an anonymous user, so after a template edit the
+  reparses of every page would share 30 fetches a minute. Override the limits as usual:
 
   ```php
-  $wgRateLimits['bibleget-fetch']['anon'] = [ 10, 60 ];
+  $wgRateLimits['bibleget-fetch']['ip'] = [ 10, 60 ];
   ```
 
   The limit applies to web and API requests, and so to the user whose view or edit reparses a page:
   when a page holds more uncached quotes than that user's limit (30 for anonymous readers by default),
   the quotes over the limit show the fallback until a later parse. Raise the limit if your pages hold
-  many quotes, for example `$wgRateLimits['bibleget-fetch']['anon'] = [ 100, 60 ];`.
+  many quotes, for example `$wgRateLimits['bibleget-fetch']['ip'] = [ 100, 60 ];`.
   Maintenance scripts are not limited: `runJobs.php` reparses (after a template edit, for example) run
   as one user for the whole process, so the limit would otherwise turn their quotes into fallbacks.
 

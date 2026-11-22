@@ -17,7 +17,8 @@ All notable changes to this extension are documented here. The format follows
   of 50 quotes per page (`$wgBibleGetMaxQuotesPerPage`). A quote the API itself cut (its `VERSES_CAPPED`
   notice) gets the same note and tracking category.
 - The `bibleget-fetch` rate limit for uncached fetches in web and API requests. Maintenance scripts such
-  as `runJobs.php` are not limited.
+  as `runJobs.php` are not limited. The defaults are per IP address, per newbie and per user; there is no
+  wiki-wide `anon` limit.
 - Until `update.php` has created the tables, quotes show the fallback with the reason "BibleGet is not
   set up yet" (`bibleget-error-setup`) and pages render normally.
 - Tracking categories for failed quotes and for quotes cut to the verse limit.

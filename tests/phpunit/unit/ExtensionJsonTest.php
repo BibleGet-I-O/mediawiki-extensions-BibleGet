@@ -39,7 +39,6 @@ class ExtensionJsonTest extends MediaWikiUnitTestCase {
 		$this->assertTrue( $ext['GroupPermissions']['sysop']['bibleget-manage'] );
 
 		$this->assertSame( [
-			'anon' => [ 30, 60 ],
 			'ip' => [ 30, 60 ],
 			'newbie' => [ 30, 60 ],
 			'user' => [ 120, 60 ],
