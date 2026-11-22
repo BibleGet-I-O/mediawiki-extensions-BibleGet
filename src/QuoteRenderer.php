@@ -77,6 +77,7 @@ class QuoteRenderer {
 		// The answer names its edition at the top (the sigla); the source line names it at the bottom.
 		[ $html, $sigla ] = self::takeVersion( $answer->html );
 		$sigla ??= $version;
+		$this->fetcher->noteQuoted( $sigla );
 		if ( $answer->cut || $answer->cappedByApi ) {
 			// Cut here (more verses than the limit) or by the API (its VERSES_CAPPED notice):
 			// either way the quote is incomplete, so it gets the note and the category.

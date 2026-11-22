@@ -22,6 +22,8 @@ class QuoteFetcher {
 	private const LAST_FAILURE_TTL = 30 * 86400;
 	/** Seconds other requests skip the API after it gave no answer. */
 	public const UNREACHABLE_TTL = 60;
+	/** Seconds between two requests for BibleGet's list of editions, for the whole farm */
+	public const VERSION_LIST_INTERVAL = 3600;
 	/** Wait after an HTTP 429 without Retry-After, and the longest wait honoured */
 	public const THROTTLE_DEFAULT = 60;
 	public const THROTTLE_MAX = 3600;
@@ -31,6 +33,9 @@ class QuoteFetcher {
 	 * An expiry, not a flag: a job runner keeps this object for hours.
 	 */
 	private int $unreachableUntil = 0;
+
+	/** Whether this process has already considered asking for the version list */
+	private bool $versionListTried = false;
 
 	public function __construct(
 		private readonly BibleGetClient $client,
@@ -61,13 +66,54 @@ class QuoteFetcher {
 	}
 
 	/**
-	 * What the API last said about an edition (full name, year, copyright holder), from any answer
-	 * that named it. Kept apart from the answers, so an answer cached without these details (or before
-	 * they were kept) still gets them once any quote of that edition is fetched.
+	 * What BibleGet last said about an edition (full name, year, copyright holder): from any answer
+	 * that named it, kept apart from the answers so that an answer cached without these details
+	 * still gets them. An edition never named yet is looked up in BibleGet's version list, at most
+	 * once an hour for the farm.
 	 *
 	 * @return array|null [ 'name' => string, 'year' => string, 'holder' => string ], or null if unknown
 	 */
 	public function versionInfo( string $sigla ): ?array {
+		$info = $this->readVersion( $sigla );
+		if ( $info === null && $this->loadVersionList() ) {
+			$info = $this->readVersion( $sigla );
+		}
+		return $info;
+	}
+
+	/**
+	 * Records that this wiki has rendered a quote of the edition (from the cache or the API).
+	 * Special:BibleGet lists these editions.
+	 */
+	public function noteQuoted( string $sigla ): void {
+		$key = $this->makeQuotedKey();
+		$quoted = $this->cache->get( $key );
+		$quoted = is_array( $quoted ) ? $quoted : [];
+		if ( !in_array( $sigla, $quoted, true ) ) {
+			$quoted[] = $sigla;
+			$this->cache->set( $key, $quoted, $this->cacheExpiry );
+		}
+	}
+
+	/**
+	 * The editions this wiki has quoted (see noteQuoted()), in sigla order, with what BibleGet said
+	 * about them; an edition BibleGet has not named has empty details.
+	 *
+	 * @return array[]
+	 */
+	public function knownVersions(): array {
+		$quoted = $this->cache->get( $this->makeQuotedKey() );
+		$known = [];
+		foreach ( is_array( $quoted ) ? $quoted : [] as $sigla ) {
+			if ( is_string( $sigla ) ) {
+				$known[$sigla] = $this->versionInfo( $sigla ) ?? [ 'name' => '', 'year' => '', 'holder' => '' ];
+			}
+		}
+		ksort( $known );
+		return $known;
+	}
+
+	private function readVersion( string $sigla ): ?array {
 		$info = $this->cache->get( $this->makeVersionKey( $sigla ) );
 		return is_array( $info ) && is_string( $info['name'] ?? null ) && $info['name'] !== ''
 			&& is_string( $info['year'] ?? null ) && is_string( $info['holder'] ?? null )
@@ -75,44 +121,56 @@ class QuoteFetcher {
 	}
 
 	/**
-	 * Every edition the API has named in an answer (see versionInfo()), by sigla, in sigla order.
+	 * Asks BibleGet for its list of editions and keeps them all, unless the farm asked within the
+	 * hour or BibleGet asked to wait. Never throws.
 	 *
-	 * @return array[]
+	 * @return bool Whether any edition was kept
 	 */
-	public function knownVersions(): array {
-		$index = $this->cache->get( $this->makeVersionIndexKey() );
-		$known = [];
-		foreach ( is_array( $index ) ? $index : [] as $sigla ) {
-			$info = is_string( $sigla ) ? $this->versionInfo( $sigla ) : null;
-			if ( $info !== null ) {
-				$known[$sigla] = $info;
-			}
+	private function loadVersionList(): bool {
+		if ( $this->versionListTried || $this->isUnreachable() || $this->isThrottled() ) {
+			return false;
 		}
-		ksort( $known );
-		return $known;
+		$this->versionListTried = true;
+		$lock = $this->stash->makeGlobalKey( 'bibleget-versionlist', md5( $this->apiBase ) );
+		if ( !$this->stash->add( $lock, 1, self::VERSION_LIST_INTERVAL ) ) {
+			return false;
+		}
+		try {
+			$credential = $this->credentials->get();
+		} catch ( Throwable ) {
+			return false;
+		}
+		if ( $credential === null ) {
+			return false;
+		}
+		$result = $this->client->bibleVersions( $credential );
+		if ( $result->status === 429 ) {
+			$this->markThrottled( $result->retryAfter );
+			return false;
+		}
+		if ( $result->status === 0 ) {
+			$this->markUnreachable();
+			return false;
+		}
+		$decoded = $result->status === 200 ? json_decode( $result->body, true ) : null;
+		$list = is_array( $decoded ) ? ( $decoded['validversions_fullname'] ?? null ) : null;
+		$versions = is_array( $list ) ? AnswerParser::versionsFromInfo( $list ) : [];
+		$this->keepVersions( $versions );
+		return $versions !== [];
 	}
 
 	/**
 	 * @param array[] $versions By sigla, as QuoteAnswer::$versions
 	 */
 	private function keepVersions( array $versions ): void {
-		if ( $versions === [] ) {
-			return;
-		}
 		foreach ( $versions as $sigla => $info ) {
 			$this->cache->set( $this->makeVersionKey( (string)$sigla ), $info, $this->cacheExpiry );
 		}
-		$indexKey = $this->makeVersionIndexKey();
-		$index = $this->cache->get( $indexKey );
-		$index = is_array( $index ) ? $index : [];
-		$all = array_values( array_unique( array_merge( $index, array_map( 'strval', array_keys( $versions ) ) ) ) );
-		if ( $all !== $index ) {
-			$this->cache->set( $indexKey, $all, $this->cacheExpiry );
-		}
 	}
 
-	private function makeVersionIndexKey(): string {
-		return $this->cache->makeGlobalKey( 'bibleget-versions', md5( $this->apiBase ) );
+	/** Wiki-local: the answers are shared by the farm, but which editions a wiki quotes is its own. */
+	private function makeQuotedKey(): string {
+		return $this->cache->makeKey( 'bibleget-quoted-versions', md5( $this->apiBase ) );
 	}
 
 	private function makeVersionKey( string $sigla ): string {

@@ -148,7 +148,9 @@ Every quote's source line links here. For every reader it says where the wiki's 
 BibleGet, a project of the Catholic Digital Commons Foundation, and that the copyrighted editions are
 provided under agreements between BibleGet and their copyright holders, with a link to the copyright
 notices on the BibleGet website (`MediaWiki:Bibleget-copyright-url`). It lists the editions the wiki has
-quoted, with their year and copyright holder, as BibleGet gave them.
+quoted (each quote rendered adds its edition, cached or not), with their full name, year and copyright
+holder as BibleGet gives them. For an edition no answer has named yet, the wiki asks BibleGet for its list
+of editions, at most once an hour for the whole farm.
 
 Managers (`bibleget-manage`) also see the status: whether the wiki uses a project key or is registered, the
 verse and quote limits, the rate limits, the last failure, and the service notices received. It never shows

@@ -91,9 +91,17 @@ class AnswerParser {
 	private static function parseVersions( DOMXPath $xpath ): array {
 		$input = $xpath->query( '//input[@name="bibleVersionsInfo"]' )->item( 0 );
 		$decoded = $input instanceof DOMElement ? json_decode( $input->getAttribute( 'value' ), true ) : null;
-		if ( !is_array( $decoded ) ) {
-			return [];
-		}
+		return is_array( $decoded ) ? self::versionsFromInfo( $decoded ) : [];
+	}
+
+	/**
+	 * Editions from BibleGet's per-sigla info strings (an answer's bibleVersionsInfo, or the
+	 * version list's validversions_fullname). Bad entries and editions without a name are left out.
+	 *
+	 * @param array $decoded [ sigla => 'fullname|year|language|imprimatur|canon|copyright_holder|notes' ]
+	 * @return array[] [ sigla => [ 'name' => string, 'year' => string, 'holder' => string ] ]
+	 */
+	public static function versionsFromInfo( array $decoded ): array {
 		$versions = [];
 		foreach ( $decoded as $sigla => $info ) {
 			if ( !is_string( $sigla ) || !preg_match( '/^[A-Za-z0-9]{1,20}$/', $sigla ) || !is_string( $info ) ) {

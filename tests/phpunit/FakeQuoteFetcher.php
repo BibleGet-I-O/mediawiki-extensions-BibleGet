@@ -36,6 +36,9 @@ class FakeQuoteFetcher extends QuoteFetcher {
 	/** @var array[] What versionInfo() returns, by sigla */
 	public array $versionInfo = [];
 
+	/** @var string[] Editions noteQuoted() was told of, in order */
+	public array $noted = [];
+
 	/** Answer without the version details, like an answer cached before they were kept */
 	public bool $dropVersions = false;
 
@@ -76,6 +79,10 @@ class FakeQuoteFetcher extends QuoteFetcher {
 
 	public function versionInfo( string $sigla ): ?array {
 		return $this->versionInfo[$sigla] ?? null;
+	}
+
+	public function noteQuoted( string $sigla ): void {
+		$this->noted[] = $sigla;
 	}
 
 	public function knownVersions(): array {

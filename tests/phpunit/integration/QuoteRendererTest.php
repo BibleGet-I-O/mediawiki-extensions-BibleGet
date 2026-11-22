@@ -129,6 +129,13 @@ class QuoteRendererTest extends MediaWikiIntegrationTestCase {
 		$this->assertStringContainsString( "\u{2014} NAB &lt;b&gt;R&lt;/b&gt;E \u{00B7}", $html );
 	}
 
+	public function testRenderedQuoteNotesItsEdition() {
+		// Special:BibleGet lists the editions this wiki quotes, cached answers included.
+		$this->parse( "<biblequote>Jn 3,16</biblequote>\n\n<biblequote version=\"DRB\">Mt 5</biblequote>"
+			. "\n\n<biblequote>Xyz 99,1</biblequote>" );
+		$this->assertSame( [ 'NABRE', 'DRB' ], $this->fetcher->noted );
+	}
+
 	public function testNewestEditionDetailsWin() {
 		// BibleGet renamed the edition after this answer was cached: the per-edition copy, kept
 		// from the newest answer of any quote, beats the one inside the older cached answer.

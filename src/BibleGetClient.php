@@ -29,6 +29,14 @@ class BibleGetClient {
 		], $credential, [] );
 	}
 
+	/**
+	 * The list of Bible editions (metadata/bibleversions, JSON): per sigla the same
+	 * fullname|year|…|copyright_holder|notes string a quote answer carries in bibleVersionsInfo.
+	 */
+	public function bibleVersions( string $credential ): ApiResult {
+		return $this->send( 'metadata/bibleversions', [ 'return' => 'json' ], $credential, [] );
+	}
+
 	public function register( string $clientKey, string $installId, string $siteUrl ): ApiResult {
 		return $this->send( 'installations', json_encode( [
 			'install_id' => $installId,

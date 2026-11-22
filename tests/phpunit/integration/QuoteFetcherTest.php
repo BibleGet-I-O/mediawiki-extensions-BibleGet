@@ -46,6 +46,15 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 	public array $registerAnswers = [];
 	/** @var array[] Notice lists passed to the notifier, one per call */
 	public array $notified = [];
+	/** @var callable Gives the ApiResult for a version list call */
+	public $versionsAnswer;
+	/** Version list calls made */
+	public int $versionLists = 0;
+
+	private const VERSIONS_JSON = '{"validversions":["CEI2008","NABRE"],"validversions_fullname":{'
+		. '"CEI2008":"La Sacra Bibbia (CEI 2008)|2008|it|1|CATHOLIC|Fondazione di Religione|",'
+		. '"NABRE":"New American Bible, Revised Edition|2011|en|1|CATHOLIC|Confraternity of Christian Doctrine, Inc.|"'
+		. '},"copyrightversions":["CEI2008","NABRE"]}';
 
 	private WANObjectCache $wan;
 	private BagOStuff $stash;
@@ -59,6 +68,8 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		$this->quoteAnswer = static fn () => new ApiResult( 200, self::fixture( 'good-nabre-jn3-16.html' ) );
 		$this->registerAnswers = [];
 		$this->notified = [];
+		$this->versionsAnswer = static fn () => new ApiResult( 500, 'down' );
+		$this->versionLists = 0;
 		ConvertibleTimestamp::setFakeTime( '20261122000000' );
 	}
 
@@ -84,6 +95,11 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 			public function quote( string $version, string $reference, string $credential ): ApiResult {
 				$this->test->quotes[] = [ $version, $reference, $credential ];
 				return ( $this->test->quoteAnswer )( $credential );
+			}
+
+			public function bibleVersions( string $credential ): ApiResult {
+				$this->test->versionLists++;
+				return ( $this->test->versionsAnswer )();
 			}
 
 			public function register( string $clientKey, string $installId, string $siteUrl ): ApiResult {
@@ -189,15 +205,54 @@ class QuoteFetcherTest extends MediaWikiIntegrationTestCase {
 		$this->assertNull( $other->versionInfo( 'NABRE' ) );
 	}
 
-	public function testKnownVersionsListsEveryEditionQuoted() {
+	public function testQuotedEditionsAreListedPerWiki() {
 		$this->assertSame( [], $this->fetcher()->knownVersions() );
+		// A fetched answer is shared by the farm's wikis: it does not say this wiki quotes the edition.
 		$this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );
-		$this->quoteAnswer = static fn () => new ApiResult( 200, self::fixture( 'full-drb-mt5.html' ) );
-		$this->fetcher()->fetch( 'DRB', 'Mt 5', $this->user() );
-		$this->fetcher()->fetch( 'NABRE', 'Mt 5', $this->user() );
+		$this->assertSame( [], $this->fetcher()->knownVersions() );
+		// A quote rendered here does, whether it came from the cache or the API.
+		$this->fetcher()->noteQuoted( 'NABRE' );
+		$this->fetcher()->noteQuoted( 'NABRE' );
+		$this->fetcher()->noteQuoted( 'DRB' );
 		$known = $this->fetcher()->knownVersions();
 		$this->assertSame( [ 'DRB', 'NABRE' ], array_keys( $known ) );
 		$this->assertSame( 'New American Bible - Revised Edition', $known['NABRE']['name'] );
+		// Not named by BibleGet yet (the version list is down): listed by its sigla alone.
+		$this->assertSame( [ 'name' => '', 'year' => '', 'holder' => '' ], $known['DRB'] );
+	}
+
+	public function testUnknownEditionLoadsTheVersionList() {
+		$this->versionsAnswer = static fn () => new ApiResult( 200, self::VERSIONS_JSON );
+		$this->assertSame( [
+			'name' => 'La Sacra Bibbia (CEI 2008)', 'year' => '2008', 'holder' => 'Fondazione di Religione',
+		], $this->fetcher()->versionInfo( 'CEI2008' ) );
+		$this->assertSame( 1, $this->versionLists );
+		// The whole list is kept, and an edition missing from it does not ask again soon.
+		$this->assertSame( 'New American Bible, Revised Edition', $this->fetcher()->versionInfo( 'NABRE' )['name'] );
+		$this->assertNull( $this->fetcher()->versionInfo( 'XYZ' ) );
+		$this->assertSame( 1, $this->versionLists );
+		$this->assertSame( [], $this->quotes );
+	}
+
+	public function testVersionListFailureIsQuiet() {
+		$this->assertNull( $this->fetcher()->versionInfo( 'CEI2008' ) );
+		$this->assertNull( $this->fetcher()->versionInfo( 'CEI2008' ) );
+		$this->assertSame( 1, $this->versionLists );
+	}
+
+	public function testVersionList429StopsQuotesToo() {
+		$this->versionsAnswer = static fn () => new ApiResult( 429, '{}', 60 );
+		$this->assertNull( $this->fetcher()->versionInfo( 'CEI2008' ) );
+		$result = $this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		$this->assertSame( 'bibleget-error-ratelimit', $result->failureKey );
+		$this->assertSame( [], $this->quotes );
+	}
+
+	public function testNoVersionListWhileThrottled() {
+		$this->quoteAnswer = static fn () => new ApiResult( 429, '{}', 60 );
+		$this->fetcher()->fetch( 'NABRE', 'Jn 3,16', $this->user() );
+		$this->assertNull( $this->fetcher()->versionInfo( 'CEI2008' ) );
+		$this->assertSame( 0, $this->versionLists );
 	}
 
 	public function testCacheHitNoRequest() {
