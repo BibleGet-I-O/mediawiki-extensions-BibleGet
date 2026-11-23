@@ -20,7 +20,13 @@
 			margin: 0;
 			color: @text-grey;
 			line-height: 1.5em;
-			text-align: justify;
+			text-align: start;
+
+			// Justified only where lines are long enough: in a phone's narrow column it leaves wide
+			// gaps between words.
+			@media screen and ( min-width: 720px ) {
+				text-align: justify;
+			}
 		}
 
 		.verseNum {
